@@ -1,0 +1,523 @@
+# ============================================================================
+# School Daylight — MongoDB Document Schema v1.0
+# One document per school. Everything embedded.
+# Primary key: NCES ID (12-character string).
+# Generated from Phase 1 exploration on 2026-02-21.
+# ============================================================================
+#
+# Design decisions:
+#   - One document per school, not separate collections, because every query
+#     is "give me everything about school X." Embedding avoids joins.
+#   - All percentages stored as decimals (0.0–1.0). Never mix scales.
+#   - NCES IDs are strings. Never convert to integer (leading zeros matter).
+#   - Suppressed values → null with metadata explaining why.
+#   - Zero means zero. Null means "can't tell you."
+
+school:
+
+  # ---- IDENTITY (from CCD Directory 2024-25) ----
+  _id:
+    type: string
+    description: "NCES 12-character school ID. Primary key. Example: '530042000104'"
+    source: "ccd_directory.NCESSCH"
+    required: true
+
+  name:
+    type: string
+    description: "Official school name."
+    source: "ccd_directory.SCH_NAME"
+    required: true
+
+  district:
+    name:
+      type: string
+      description: "District name."
+      source: "ccd_directory.LEA_NAME"
+      required: true
+    nces_id:
+      type: string
+      description: "NCES district ID (7-char string). Example: '5300420'"
+      source: "ccd_directory.LEAID"
+      required: true
+
+  address:
+    street:
+      type: string
+      source: "ccd_directory.LSTREET1"
+    city:
+      type: string
+      source: "ccd_directory.LCITY"
+      required: true
+    state:
+      type: string
+      description: "Always 'WA' for this project."
+      source: "ccd_directory.LSTATE"
+      required: true
+    zip:
+      type: string
+      source: "ccd_directory.LZIP"
+
+  school_type:
+    type: string
+    description: "Regular School, Alternative School, Special Education School, Career and Technical School."
+    source: "ccd_directory.SCH_TYPE_TEXT"
+    required: true
+
+  level:
+    type: string
+    description: "Elementary, Middle, High, Secondary, Prekindergarten, Other."
+    source: "ccd_directory.LEVEL"
+
+  grade_span:
+    low:
+      type: string
+      description: "Lowest grade offered (PK, KG, 01-12)."
+      source: "ccd_directory.GSLO"
+    high:
+      type: string
+      description: "Highest grade offered."
+      source: "ccd_directory.GSHI"
+
+  is_charter:
+    type: boolean
+    source: "ccd_directory.CHARTER_TEXT → Yes/No to true/false"
+
+  website:
+    type: string
+    source: "ccd_directory.WEBSITE"
+
+  phone:
+    type: string
+    source: "ccd_directory.PHONE"
+
+  # ---- ENROLLMENT (from CCD Membership 2024-25) ----
+  enrollment:
+    year:
+      type: string
+      value: "2024-25"
+    total:
+      type: integer
+      description: "Total enrollment."
+      source: "ccd_membership: Education Unit Total"
+      required: true
+    by_race:
+      hispanic:
+        type: integer
+        source: "ccd_membership: Hispanic/Latino (sum M+F)"
+      american_indian:
+        type: integer
+        source: "ccd_membership: American Indian or Alaska Native (sum M+F)"
+      asian:
+        type: integer
+        source: "ccd_membership: Asian (sum M+F)"
+      black:
+        type: integer
+        source: "ccd_membership: Black or African American (sum M+F)"
+      pacific_islander:
+        type: integer
+        source: "ccd_membership: Native Hawaiian or Other Pacific Islander (sum M+F)"
+      white:
+        type: integer
+        source: "ccd_membership: White (sum M+F)"
+      two_or_more:
+        type: integer
+        source: "ccd_membership: Two or more races (sum M+F)"
+    by_sex:
+      male:
+        type: integer
+      female:
+        type: integer
+
+  # ---- DEMOGRAPHICS (from OSPI Enrollment 2023-24) ----
+  # FRL, ELL, SPED, and other subgroup counts come from OSPI because
+  # CCD Membership does not include FRL data.
+  demographics:
+    year:
+      type: string
+      value: "2023-24"
+    source:
+      type: string
+      value: "ospi_enrollment"
+    frl_count:
+      type: integer
+      description: "Students eligible for free/reduced lunch (poverty proxy)."
+      source: "ospi_enrollment: 'Low Income' column"
+    frl_pct:
+      type: float
+      description: "FRL percentage. Computed: frl_count / OSPI 'All Students'. Stored as 0.0-1.0."
+      source: "derived"
+    ell_count:
+      type: integer
+      description: "English Language Learner students."
+      source: "ospi_enrollment: 'English Language Learners'"
+    sped_count:
+      type: integer
+      description: "Students with disabilities (special education)."
+      source: "ospi_enrollment: 'Students with Disabilities'"
+    section_504_count:
+      type: integer
+      source: "ospi_enrollment: 'Section 504'"
+    foster_care_count:
+      type: integer
+      description: "Often suppressed (N<10)."
+      source: "ospi_enrollment: 'Foster Care'"
+    homeless_count:
+      type: integer
+      source: "ospi_enrollment: 'Homeless'"
+    migrant_count:
+      type: integer
+      source: "ospi_enrollment: 'Migrant'"
+
+  # ---- ACADEMICS ----
+  academics:
+
+    assessment:
+      year:
+        type: string
+        value: "2023-24"
+      source:
+        type: string
+        value: "ospi_assessment"
+      ela_proficiency_pct:
+        type: float
+        description: "% meeting or exceeding ELA standard. 0.0-1.0."
+        source: "ospi_assessment: 'Percent Consistent Grade Level Knowledge And Above' where TestSubject='ELA'"
+      math_proficiency_pct:
+        type: float
+        description: "% meeting or exceeding Math standard. 0.0-1.0."
+      science_proficiency_pct:
+        type: float
+        description: "% meeting or exceeding Science standard. 0.0-1.0."
+      students_tested:
+        type: integer
+        source: "ospi_assessment: 'Count of Students Expected to Test'"
+
+    growth:
+      year:
+        type: string
+        description: "Use 2024-25 if available; 2023-24 fallback."
+      source:
+        type: string
+        value: "ospi_growth"
+      ela_median_sgp:
+        type: float
+        description: "Median Student Growth Percentile for ELA. 50 = typical growth."
+      math_median_sgp:
+        type: float
+        description: "Median Student Growth Percentile for Math."
+      ela_pct_low:
+        type: float
+        description: "% students with low growth in ELA."
+      ela_pct_typical:
+        type: float
+      ela_pct_high:
+        type: float
+      math_pct_low:
+        type: float
+      math_pct_typical:
+        type: float
+      math_pct_high:
+        type: float
+
+    attendance:
+      year:
+        type: string
+        value: "2024-25"
+      source:
+        type: string
+        value: "ospi_sqss"
+      regular_attendance_pct:
+        type: float
+        description: "% of students attending regularly (not chronically absent). 0.0-1.0."
+      regular_attendance_numerator:
+        type: integer
+      regular_attendance_denominator:
+        type: integer
+
+    ninth_grade_on_track_pct:
+      type: float
+      description: "% of first-time 9th graders on track to graduate. High school only. Null for non-HS."
+      source: "ospi_sqss: Measure='Ninth Grade on Track'"
+
+    dual_credit_pct:
+      type: float
+      description: "% of students earning dual credit. High school only."
+      source: "ospi_sqss: Measure='Dual Credit'"
+
+  # ---- DISCIPLINE ----
+  discipline:
+
+    # OSPI: more recent, aggregate rates
+    ospi:
+      year:
+        type: string
+        value: "2023-24"
+      rate:
+        type: float
+        description: "Overall discipline rate (% students with ≥1 exclusionary action). 0.0-1.0."
+      numerator:
+        type: integer
+      denominator:
+        type: integer
+
+    # CRDC: older but disaggregated by race/sex/disability
+    crdc:
+      year:
+        type: string
+        value: "2021-22"
+      iss:
+        type: object
+        description: "In-school suspensions by race/sex (without disability)."
+        structure: "{race}_{sex}: count"
+      oss_single:
+        type: object
+        description: "Single out-of-school suspensions by race/sex."
+      oss_multiple:
+        type: object
+        description: "Multiple out-of-school suspensions by race/sex."
+      iss_idea:
+        type: object
+        description: "In-school suspensions for IDEA students by race/sex."
+      oss_single_idea:
+        type: object
+      oss_multiple_idea:
+        type: object
+      expulsions:
+        type: object
+        description: "Expulsions with/without educational services."
+      corporal_punishment_indicator:
+        type: boolean
+        description: "Whether school uses corporal punishment (expect false for all WA schools)."
+      corporal_punishment_count:
+        type: integer
+
+  # ---- SAFETY ----
+  safety:
+
+    restraint_seclusion:
+      year:
+        type: string
+        value: "2021-22"
+      source:
+        type: string
+        value: "crdc_restraint_seclusion"
+      caveat:
+        type: string
+        value: "GAO found significant quality issues in restraint/seclusion data."
+      mechanical_wodis:
+        type: integer
+        description: "Mechanical restraint instances, students without disability."
+      mechanical_idea:
+        type: integer
+        description: "Mechanical restraint instances, IDEA students."
+      mechanical_504:
+        type: integer
+      physical_wodis:
+        type: integer
+      physical_idea:
+        type: integer
+      physical_504:
+        type: integer
+      seclusion_wodis:
+        type: integer
+      seclusion_idea:
+        type: integer
+      seclusion_504:
+        type: integer
+
+    referrals_arrests:
+      year:
+        type: string
+        value: "2021-22"
+      referrals:
+        type: object
+        description: "Law enforcement referrals by race/sex."
+      arrests:
+        type: object
+        description: "School-related arrests by race/sex."
+
+    harassment_bullying:
+      year:
+        type: string
+        value: "2021-22"
+      allegations_sex:
+        type: integer
+        description: "Harassment allegations based on sex."
+      allegations_orientation:
+        type: integer
+        description: "Harassment allegations based on sexual orientation."
+      allegations_race:
+        type: integer
+        description: "Harassment allegations based on race."
+      allegations_disability:
+        type: integer
+        description: "Harassment allegations based on disability."
+      allegations_religion:
+        type: integer
+
+    offenses:
+      year:
+        type: string
+        value: "2021-22"
+      attacks_with_weapon:
+        type: integer
+      attacks_without_weapon:
+        type: integer
+      weapon_possession:
+        type: integer
+      robbery_with_weapon:
+        type: integer
+      robbery_without_weapon:
+        type: integer
+      threats_with_weapon:
+        type: integer
+      threats_without_weapon:
+        type: integer
+      sexual_assault_allegations:
+        type: integer
+      battery_allegations:
+        type: integer
+      firearm_indicator:
+        type: boolean
+      homicide_indicator:
+        type: boolean
+
+  # ---- STAFFING (from CRDC School Support 2021-22) ----
+  staffing:
+    year:
+      type: string
+      value: "2021-22"
+    source:
+      type: string
+      value: "crdc_school_support"
+    teacher_fte_total:
+      type: float
+    teacher_fte_certified:
+      type: float
+    teacher_fte_not_certified:
+      type: float
+    counselor_fte:
+      type: float
+    nurse_fte:
+      type: float
+    psychologist_fte:
+      type: float
+    social_worker_fte:
+      type: float
+    sro_fte:
+      type: float
+      description: "Law enforcement officers (school resource officers)."
+    security_guard_fte:
+      type: float
+
+  # ---- FINANCE (from OSPI PPE, multi-year) ----
+  finance:
+    year:
+      type: string
+      description: "Most recent year available."
+    source:
+      type: string
+      value: "ospi_ppe"
+    per_pupil_total:
+      type: float
+    per_pupil_local:
+      type: float
+    per_pupil_state:
+      type: float
+    per_pupil_federal:
+      type: float
+
+  # ---- COURSE ACCESS (from CRDC 2021-22) ----
+  course_access:
+    year:
+      type: string
+      value: "2021-22"
+
+    ap:
+      indicator:
+        type: boolean
+        description: "Whether school offers AP courses."
+      enrollment_by_race:
+        type: object
+        description: "AP enrollment by race/sex. Same structure as discipline."
+
+    dual_enrollment:
+      indicator:
+        type: boolean
+      enrollment_by_race:
+        type: object
+
+    gifted_talented:
+      indicator:
+        type: boolean
+      enrollment_by_race:
+        type: object
+
+  # ---- METADATA ----
+  metadata:
+    ospi_school_code:
+      type: string
+      description: "OSPI school code (from ST_SCHID). For crosswalk traceability."
+    ospi_district_code:
+      type: string
+      description: "OSPI district code (from ST_SCHID)."
+    crdc_combokey:
+      type: string
+      description: "CRDC COMBOKEY (same as NCESSCH). For traceability."
+    data_vintage:
+      ccd: "2024-25"
+      crdc: "2021-22"
+      ospi_enrollment: "2023-24"
+      ospi_assessment: "2023-24"
+      ospi_discipline: "2023-24"
+      ospi_growth: "2024-25"
+      ospi_sqss: "2024-25"
+      ospi_ppe: "varies (2019-2025)"
+    join_status:
+      type: string
+      description: "How many sources this school was found in. 'all_sources', 'missing_crdc', 'missing_ospi', etc."
+
+  # ---- DERIVED FIELDS (Phase 3, not populated in Phase 1) ----
+  derived:
+    description: "Calculated fields populated in Phase 3 (comparison engine)."
+    student_teacher_ratio:
+      type: float
+      description: "enrollment.total / staffing.teacher_fte_total"
+    counselor_student_ratio:
+      type: float
+      description: "staffing.counselor_fte / enrollment.total"
+    percentile_district:
+      type: integer
+      description: "0-100. How this school ranks in its district."
+    percentile_state:
+      type: integer
+      description: "0-100. How this school ranks statewide."
+    percentile_peers:
+      type: integer
+      description: "0-100. How this school ranks vs. demographic peers."
+    performance_flag:
+      type: string
+      description: "'outperforming_demographics', 'as_expected', 'underperforming_demographics'"
+    peer_cohort:
+      type: string
+      description: "E.g., 'Rural Title I, 200-350 enrollment, high FRL'"
+
+  # ---- AI CONTEXT (Phase 4, populated by Haiku) ----
+  ai_context:
+    description: "Populated in Phase 4 by Haiku web search and enrichment."
+    generated_at:
+      type: string
+      description: "ISO 8601 timestamp."
+    news: []
+    reputation: []
+    recognition: []
+
+  # ---- CACHED BRIEFING (Phase 5, generated by Sonnet) ----
+  cached_briefing:
+    description: "Full briefing narrative generated by Sonnet."
+    text:
+      type: string
+    generated_at:
+      type: string
+    prompt_version:
+      type: string

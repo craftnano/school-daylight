@@ -1,0 +1,1022 @@
+# ============================================================================
+# School Daylight — Data Dictionary v1.0
+# Generated from Phase 1 exploration on 2026-02-21
+# Maps raw source columns → MongoDB schema fields
+# ============================================================================
+#
+# Confidence levels:
+#   high   = >90% certain this mapping is correct
+#   medium = 70-90% certain, needs verification during pipeline testing
+#   low    = <70% certain, flagged for manual review
+#
+# Suppression handling (project rule, non-negotiable):
+#   Suppressed values → null with "suppressed": true
+#   Zero means "zero incidents." Null-suppressed means "can't tell you."
+#   These are different. Never conflate them.
+
+# ============================================================================
+# SOURCES
+# ============================================================================
+
+sources:
+
+  ccd_directory:
+    file: "ccd_sch_029_2425_w_1a_073025.csv (from ZIP)"
+    year: "2024-25"
+    description: "NCES Common Core of Data — School Directory. Provides the canonical list of schools, NCES IDs, addresses, school type, grade span, charter status, and the crosswalk to OSPI via ST_SCHID."
+    total_rows_national: 102178
+    total_rows_wa: 2566
+    filter: "ST == 'WA'"
+    join_key: "NCESSCH (12-char string, primary key)"
+    crosswalk_field: "ST_SCHID (format: WA-{DistrictCode}-{SchoolCode})"
+
+  ccd_membership:
+    file: "ccd_sch_052_2425_l_1a_073025.csv (from ZIP)"
+    year: "2024-25"
+    description: "NCES CCD School Membership. Long format — one row per school/grade/race/sex. Provides enrollment by demographics."
+    total_rows_national: 11172292
+    total_rows_wa: 282381
+    unique_wa_schools: 2543
+    filter: "ST == 'WA'"
+    format: "long (aggregate using TOTAL_INDICATOR)"
+    join_key: "NCESSCH (same as directory)"
+    suppression_markers:
+      "-1": "Data not available / not reported"
+    note: "Does NOT contain FRL data. FRL comes from OSPI enrollment."
+
+  crdc_enrollment:
+    file: "SCH/Enrollment.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "CRDC school enrollment by race, sex, disability, EL status. 233 columns."
+    total_rows_wa: 2438
+    filter: "LEA_STATE == 'WA'"
+    join_key: "COMBOKEY (12-char, same value as NCESSCH)"
+
+  crdc_suspensions:
+    file: "SCH/Suspensions.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "In-school and out-of-school suspensions by race, sex, disability. 189 columns."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+
+  crdc_expulsions:
+    file: "SCH/Expulsions.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "Expulsions with and without educational services. 142 columns."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+
+  crdc_restraint_seclusion:
+    file: "SCH/Restraint and Seclusion.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "Mechanical restraint, physical restraint, seclusion by race/disability. 131 columns. GAO-flagged data quality issues."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+    caveat: "GAO found significant quality issues in restraint/seclusion data."
+
+  crdc_referrals_arrests:
+    file: "SCH/Referrals and Arrests.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "Law enforcement referrals and school-related arrests by race/sex/disability. 84 columns."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+
+  crdc_harassment_bullying:
+    file: "SCH/Harassment and Bullying.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "Harassment/bullying allegations by type (sex, orientation, race, disability, religion). 159 columns."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+
+  crdc_school_support:
+    file: "SCH/School Support.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "Staff FTE: teachers (total, certified, not certified), counselors, nurses, psychologists, social workers, SROs, security guards. 19 columns."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+
+  crdc_advanced_placement:
+    file: "SCH/Advanced Placement.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "AP course enrollment by race/sex. 98 columns."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+
+  crdc_dual_enrollment:
+    file: "SCH/Dual Enrollment.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "Dual enrollment/college credit by race/sex. 29 columns."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+
+  crdc_gifted_talented:
+    file: "SCH/Gifted and Talented.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "Gifted and talented enrollment by race/sex. 29 columns."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+
+  crdc_offenses:
+    file: "SCH/Offenses.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "School offenses (weapons, threats, robbery, battery). 33 columns."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+
+  crdc_corporal_punishment:
+    file: "SCH/Corporal Punishment.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "Corporal punishment instances by race/sex/disability. 72 columns."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+
+  crdc_school_characteristics:
+    file: "SCH/School Characteristics.csv (from 2021-22-crdc-data.zip)"
+    year: "2021-22"
+    description: "School type, virtual status, justice facility, grades served. 34 columns."
+    total_rows_wa: 2438
+    join_key: "COMBOKEY"
+
+  ospi_enrollment:
+    file: "Report_Card_Enrollment_2023-24_School_Year.csv"
+    year: "2023-24"
+    description: "OSPI enrollment by 15+ demographic categories including FRL (Low Income), ELL, SPED, Foster Care, Homeless, Section 504. 46 columns."
+    total_rows: 20565
+    school_level_all_grades: 2465
+    filter: "OrganizationLevel == 'School' AND GradeLevel == 'All Grades'"
+    join_key: "DistrictCode + SchoolCode → CCD ST_SCHID"
+    note: "PRIMARY source for FRL data (CCD does not have FRL)."
+
+  ospi_assessment:
+    file: "Report_Card_Assessment_Data_2023-24.csv"
+    year: "2023-24"
+    description: "SBAC proficiency rates by subject/grade/subgroup. 34 columns."
+    total_rows: 761859
+    school_level_rows: 596782
+    filter: "OrganizationLevel == 'School'"
+    join_key: "DistrictCode + SchoolCode"
+    note: "Filter to StudentGroupType=='All', GradeLevel=='All Grades' for school totals."
+
+  ospi_discipline:
+    file: "Report_Card_Discipline_for_2023-24.csv"
+    year: "2023-24"
+    description: "Discipline rates and exclusion durations by student group. 29 columns."
+    total_rows: 459850
+    school_level_rows: 359002
+    filter: "OrganizationLevel == 'School'"
+    join_key: "DistrictCode + SchoolCode"
+    cleaning_required: "COMMA-IN-IDS BUG: DistrictCode and SchoolCode have commas (e.g., '2,066' not '2066'). Strip commas before joining."
+    note: "Uses GradeLevel='All' for aggregate (not 'All Grades')."
+
+  ospi_growth_2324:
+    file: "Report_Card_Growth_for_2023-24.csv"
+    year: "2023-24"
+    description: "Student Growth Percentile (SGP) by subject/grade/subgroup. 26 columns."
+    total_rows: 407846
+    school_level_rows: 321407
+    filter: "OrganizationLevel == 'School'"
+    join_key: "DistrictCode + SchoolCode"
+    note: "DATReason='NULL' is NOT suppression — means 'no special reason'. Filter StudentGroupType='AllStudents' (no space)."
+
+  ospi_growth_2425:
+    file: "Report_Card_Growth_for_2024-25.csv"
+    year: "2024-25"
+    description: "Same as growth 2023-24 but newer year. 26 columns."
+    total_rows: 406365
+    school_level_rows: 320223
+    filter: "OrganizationLevel == 'School'"
+    join_key: "DistrictCode + SchoolCode"
+
+  ospi_sqss:
+    file: "Report_Card_SQSS_for_2024-25.csv"
+    year: "2024-25"
+    description: "School Quality/Student Success: Regular Attendance, Dual Credit, 9th Grade on Track. 35 columns."
+    total_rows: 769933
+    school_level_rows: 607905
+    filter: "OrganizationLevel == 'School'"
+    join_key: "DistrictCode + SchoolCode"
+    note: "This is the ONLY source for attendance data. No separate Attendance CSV exists."
+
+  ospi_ppe:
+    file: "Per_Pupil_Expenditure_AllYears.csv"
+    year: "2019-2025 (multi-year)"
+    description: "Per-pupil expenditure by funding source (local, state, federal). 16 columns."
+    total_rows: 16523
+    filter: "Organization Level == 'School'"
+    join_key: "SchoolCode (same as OSPI SchoolCode)"
+    note: "SchoolCode in this file does NOT have the comma bug."
+
+
+# ============================================================================
+# COLUMN MAPPINGS
+# ============================================================================
+# Each mapping shows: schema field, source, source column(s), description,
+# data type, cleaning rule, and confidence level.
+
+mappings:
+
+  # ---- IDENTITY ----
+
+  - schema_field: "_id"
+    source: "ccd_directory"
+    source_column: "NCESSCH"
+    description: "NCES 12-character school ID. Universal primary key across all data sources."
+    data_type: "string"
+    cleaning_rule: "Read as string with dtype=str. NEVER convert to integer — leading zeros get stripped."
+    confidence: "high"
+
+  - schema_field: "name"
+    source: "ccd_directory"
+    source_column: "SCH_NAME"
+    description: "Official school name from federal CCD directory."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "district.name"
+    source: "ccd_directory"
+    source_column: "LEA_NAME"
+    description: "School district name."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "district.nces_id"
+    source: "ccd_directory"
+    source_column: "LEAID"
+    description: "NCES district ID (7-character string)."
+    data_type: "string"
+    cleaning_rule: "Read as string with dtype=str."
+    confidence: "high"
+
+  - schema_field: "address.street"
+    source: "ccd_directory"
+    source_column: "LSTREET1"
+    description: "Physical street address."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "address.city"
+    source: "ccd_directory"
+    source_column: "LCITY"
+    description: "Physical city."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "address.state"
+    source: "ccd_directory"
+    source_column: "LSTATE"
+    description: "State code (always 'WA' for this project)."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "address.zip"
+    source: "ccd_directory"
+    source_column: "LZIP"
+    description: "ZIP code."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "school_type"
+    source: "ccd_directory"
+    source_column: "SCH_TYPE_TEXT"
+    description: "School type: Regular School, Alternative School, Special Education School, Career and Technical School."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "level"
+    source: "ccd_directory"
+    source_column: "LEVEL"
+    description: "School level: Elementary, Middle, High, Secondary, Prekindergarten, Other, Not reported."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "grade_span.low"
+    source: "ccd_directory"
+    source_column: "GSLO"
+    description: "Lowest grade offered (PK, KG, 01-12)."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "grade_span.high"
+    source: "ccd_directory"
+    source_column: "GSHI"
+    description: "Highest grade offered."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "is_charter"
+    source: "ccd_directory"
+    source_column: "CHARTER_TEXT"
+    description: "Whether school is a charter. 'Yes' or 'No'."
+    data_type: "boolean"
+    cleaning_rule: "Convert 'Yes' → true, 'No' → false."
+    confidence: "high"
+
+  - schema_field: "website"
+    source: "ccd_directory"
+    source_column: "WEBSITE"
+    description: "School website URL."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "phone"
+    source: "ccd_directory"
+    source_column: "PHONE"
+    description: "School phone number."
+    data_type: "string"
+    confidence: "high"
+
+  # ---- ENROLLMENT ----
+
+  - schema_field: "enrollment.total"
+    source: "ccd_membership"
+    source_column: "STUDENT_COUNT where TOTAL_INDICATOR == 'Education Unit Total'"
+    description: "Total school enrollment from CCD (most recent year)."
+    data_type: "integer"
+    cleaning_rule: "Filter to TOTAL_INDICATOR='Education Unit Total'. Read as integer."
+    confidence: "high"
+    note: "CCD 2024-25 is the newest enrollment source."
+
+  - schema_field: "enrollment.by_race.hispanic"
+    source: "ccd_membership"
+    source_column: "STUDENT_COUNT where RACE_ETHNICITY == 'Hispanic/Latino' (sum M+F)"
+    description: "Hispanic/Latino enrollment."
+    data_type: "integer"
+    cleaning_rule: "Sum male + female rows from 'Derived - Subtotal by Race/Ethnicity and Sex minus Adult Education Count'."
+    confidence: "high"
+
+  - schema_field: "enrollment.by_race.american_indian"
+    source: "ccd_membership"
+    source_column: "STUDENT_COUNT where RACE_ETHNICITY == 'American Indian or Alaska Native' (sum M+F)"
+    description: "American Indian or Alaska Native enrollment."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "enrollment.by_race.asian"
+    source: "ccd_membership"
+    source_column: "STUDENT_COUNT where RACE_ETHNICITY == 'Asian' (sum M+F)"
+    description: "Asian enrollment."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "enrollment.by_race.black"
+    source: "ccd_membership"
+    source_column: "STUDENT_COUNT where RACE_ETHNICITY == 'Black or African American' (sum M+F)"
+    description: "Black or African American enrollment."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "enrollment.by_race.pacific_islander"
+    source: "ccd_membership"
+    source_column: "STUDENT_COUNT where RACE_ETHNICITY == 'Native Hawaiian or Other Pacific Islander' (sum M+F)"
+    description: "Native Hawaiian or Other Pacific Islander enrollment."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "enrollment.by_race.white"
+    source: "ccd_membership"
+    source_column: "STUDENT_COUNT where RACE_ETHNICITY == 'White' (sum M+F)"
+    description: "White enrollment."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "enrollment.by_race.two_or_more"
+    source: "ccd_membership"
+    source_column: "STUDENT_COUNT where RACE_ETHNICITY == 'Two or more races' (sum M+F)"
+    description: "Two or more races enrollment."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "enrollment.by_sex.male"
+    source: "ccd_membership"
+    source_column: "Sum of male counts across race subtotals"
+    description: "Male enrollment."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "enrollment.by_sex.female"
+    source: "ccd_membership"
+    source_column: "Sum of female counts across race subtotals"
+    description: "Female enrollment."
+    data_type: "integer"
+    confidence: "high"
+
+  # ---- DEMOGRAPHICS (from OSPI — source of FRL, ELL, SPED) ----
+
+  - schema_field: "demographics.frl_count"
+    source: "ospi_enrollment"
+    source_column: "Low Income"
+    description: "Students eligible for free/reduced-price lunch. This is the poverty proxy."
+    data_type: "integer"
+    cleaning_rule: "Filter to OrganizationLevel='School', GradeLevel='All Grades'."
+    confidence: "high"
+    note: "CCD does NOT have FRL. OSPI 'Low Income' is the sole FRL source."
+
+  - schema_field: "demographics.frl_pct"
+    source: "derived"
+    source_column: "computed: Low Income / All Students"
+    description: "Percentage of students eligible for free/reduced lunch."
+    data_type: "float"
+    cleaning_rule: "Compute as decimal 0.0-1.0. If All Students == 0 or Low Income is suppressed, set to null."
+    confidence: "high"
+
+  - schema_field: "demographics.ell_count"
+    source: "ospi_enrollment"
+    source_column: "English Language Learners"
+    description: "English Language Learner students."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "demographics.sped_count"
+    source: "ospi_enrollment"
+    source_column: "Students with Disabilities"
+    description: "Students receiving special education services."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "demographics.section_504_count"
+    source: "ospi_enrollment"
+    source_column: "Section 504"
+    description: "Students with Section 504 plans."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "demographics.foster_care_count"
+    source: "ospi_enrollment"
+    source_column: "Foster Care"
+    description: "Students in foster care. Often suppressed (DAT Applied: Foster Care - N < 10)."
+    data_type: "integer"
+    suppression_handling: "1,315 schools have DAT suppression for foster care. Store as null with suppressed:true."
+    confidence: "high"
+
+  - schema_field: "demographics.homeless_count"
+    source: "ospi_enrollment"
+    source_column: "Homeless"
+    description: "Students experiencing homelessness."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "demographics.migrant_count"
+    source: "ospi_enrollment"
+    source_column: "Migrant"
+    description: "Migrant students."
+    data_type: "integer"
+    confidence: "high"
+
+  # ---- ACADEMICS: ASSESSMENT ----
+
+  - schema_field: "academics.assessment.ela_proficiency_pct"
+    source: "ospi_assessment"
+    source_column: "Percent Consistent Grade Level Knowledge And Above"
+    description: "Percentage of students meeting or exceeding ELA standard."
+    data_type: "float"
+    cleaning_rule: "Filter to TestSubject='ELA', StudentGroupType='All', GradeLevel='All Grades'. Parse percentage string (e.g., '64.90%' → 0.649). Store as 0.0-1.0 decimal."
+    suppression_handling: "If DAT='N<10', store as null with suppressed:true."
+    confidence: "high"
+
+  - schema_field: "academics.assessment.math_proficiency_pct"
+    source: "ospi_assessment"
+    source_column: "Percent Consistent Grade Level Knowledge And Above"
+    description: "Percentage of students meeting or exceeding Math standard."
+    data_type: "float"
+    cleaning_rule: "Filter to TestSubject='Math', StudentGroupType='All', GradeLevel='All Grades'. Parse percentage."
+    confidence: "high"
+
+  - schema_field: "academics.assessment.science_proficiency_pct"
+    source: "ospi_assessment"
+    source_column: "Percent Consistent Grade Level Knowledge And Above"
+    description: "Percentage of students meeting or exceeding Science standard."
+    data_type: "float"
+    cleaning_rule: "Filter to TestSubject='Science', StudentGroupType='All', GradeLevel='All Grades'. Parse percentage."
+    confidence: "high"
+
+  - schema_field: "academics.assessment.students_tested"
+    source: "ospi_assessment"
+    source_column: "Count of Students Expected to Test"
+    description: "Number of students expected to test."
+    data_type: "integer"
+    confidence: "high"
+
+  # ---- ACADEMICS: GROWTH ----
+
+  - schema_field: "academics.growth.ela_median_sgp"
+    source: "ospi_growth_2425"
+    source_column: "MedianSGP"
+    description: "Median Student Growth Percentile for ELA. 50 = typical growth."
+    data_type: "float"
+    cleaning_rule: "Filter to Subject='English Language Arts', StudentGroupType='AllStudents' (no space), GradeLevel='All Grades'. Parse as float."
+    suppression_handling: "If DATReason='N<10', store as null. DATReason='NULL' is NOT suppression."
+    confidence: "high"
+    note: "Use 2024-25 if available; fall back to 2023-24."
+
+  - schema_field: "academics.growth.math_median_sgp"
+    source: "ospi_growth_2425"
+    source_column: "MedianSGP"
+    description: "Median Student Growth Percentile for Math."
+    data_type: "float"
+    cleaning_rule: "Filter to Subject='Math', StudentGroupType='AllStudents', GradeLevel='All Grades'."
+    confidence: "high"
+
+  - schema_field: "academics.growth.ela_pct_low"
+    source: "ospi_growth_2425"
+    source_column: "PercentLowGrowth"
+    description: "Percentage of students with low growth in ELA."
+    data_type: "float"
+    cleaning_rule: "Parse as decimal 0.0-1.0."
+    confidence: "high"
+
+  - schema_field: "academics.growth.ela_pct_typical"
+    source: "ospi_growth_2425"
+    source_column: "PercentTypicalGrowth"
+    description: "Percentage of students with typical growth in ELA."
+    data_type: "float"
+    confidence: "high"
+
+  - schema_field: "academics.growth.ela_pct_high"
+    source: "ospi_growth_2425"
+    source_column: "PercentHighGrowth"
+    description: "Percentage of students with high growth in ELA."
+    data_type: "float"
+    confidence: "high"
+
+  # ---- ACADEMICS: ATTENDANCE ----
+
+  - schema_field: "academics.attendance.regular_attendance_pct"
+    source: "ospi_sqss"
+    source_column: "Percent (where Measure='Regular Attendance')"
+    description: "Percentage of students attending regularly (not chronically absent). This is the ONLY attendance source."
+    data_type: "float"
+    cleaning_rule: "Filter to Measure='Regular Attendance', StudentGroupType='All Students' (with space), GradeLevel='All Grades'. Already in 0.0-1.0 format."
+    suppression_handling: "If DAT_Reason='N<10', store as null. If DAT_Reason='No Students', store as null with no_students:true."
+    confidence: "high"
+    note: "No separate attendance file exists. Attendance data comes from SQSS only."
+
+  - schema_field: "academics.attendance.regular_attendance_numerator"
+    source: "ospi_sqss"
+    source_column: "Numerator"
+    description: "Number of students attending regularly."
+    data_type: "integer"
+    confidence: "high"
+
+  - schema_field: "academics.attendance.regular_attendance_denominator"
+    source: "ospi_sqss"
+    source_column: "Denominator"
+    description: "Total students counted for attendance."
+    data_type: "integer"
+    confidence: "high"
+
+  # ---- DISCIPLINE: OSPI (state-level, more recent) ----
+
+  - schema_field: "discipline.ospi.rate"
+    source: "ospi_discipline"
+    source_column: "DisciplineRate"
+    description: "Overall discipline rate (percentage of students with at least one exclusionary discipline action)."
+    data_type: "float"
+    cleaning_rule: "Filter to Student Group='All Students', GradeLevel='All' (NOT 'All Grades'). Parse percentage string (e.g., '4.55%' → 0.0455). Strip commas from DistrictCode/SchoolCode before joining."
+    suppression_handling: "If DisciplineDATNotes='N<10', store as null. If value starts with '<' (e.g., '<27.3%'), this is a top/bottom range — store the threshold value with a range_suppressed flag."
+    confidence: "high"
+
+  - schema_field: "discipline.ospi.numerator"
+    source: "ospi_discipline"
+    source_column: "DisciplineNumerator"
+    description: "Number of students with at least one exclusionary action."
+    data_type: "integer"
+    suppression_handling: "'*' = suppressed. Store as null."
+    confidence: "high"
+
+  - schema_field: "discipline.ospi.denominator"
+    source: "ospi_discipline"
+    source_column: "DisciplineDenominator"
+    description: "Total students in the group."
+    data_type: "integer"
+    suppression_handling: "'*' = suppressed."
+    confidence: "high"
+
+  # ---- DISCIPLINE: CRDC (federal, detailed by race/sex/disability) ----
+
+  - schema_field: "discipline.crdc.iss"
+    source: "crdc_suspensions"
+    source_column: "SCH_DISCWODIS_ISS_* (18 columns by race+sex)"
+    description: "In-school suspensions without disability, by race and sex. Each race has _M and _F columns. Races: HI, AM, AS, HP, BL, WH, TR (two or more)."
+    data_type: "object"
+    cleaning_rule: "Map race codes: HI=hispanic, AM=american_indian, AS=asian, HP=pacific_islander, BL=black, WH=white, TR=two_or_more."
+    suppression_handling: "-9 → null (not applicable). Zero → 0 (genuine zero incidents)."
+    confidence: "high"
+
+  - schema_field: "discipline.crdc.oss_single"
+    source: "crdc_suspensions"
+    source_column: "SCH_DISCWODIS_SINGOOS_* (18 columns)"
+    description: "Single out-of-school suspensions without disability, by race and sex."
+    data_type: "object"
+    confidence: "high"
+
+  - schema_field: "discipline.crdc.oss_multiple"
+    source: "crdc_suspensions"
+    source_column: "SCH_DISCWODIS_MULTOOS_* (18 columns)"
+    description: "Multiple out-of-school suspensions without disability, by race and sex."
+    data_type: "object"
+    confidence: "high"
+
+  - schema_field: "discipline.crdc.iss_idea"
+    source: "crdc_suspensions"
+    source_column: "SCH_DISCIDEA_ISS_* (18 columns)"
+    description: "In-school suspensions for students with IDEA disabilities, by race and sex."
+    data_type: "object"
+    confidence: "high"
+
+  - schema_field: "discipline.crdc.oss_single_idea"
+    source: "crdc_suspensions"
+    source_column: "SCH_DISCIDEA_SINGOOS_* (18 columns)"
+    description: "Single out-of-school suspensions for IDEA students."
+    data_type: "object"
+    confidence: "high"
+
+  - schema_field: "discipline.crdc.oss_multiple_idea"
+    source: "crdc_suspensions"
+    source_column: "SCH_DISCIDEA_MULTOOS_* (18 columns)"
+    description: "Multiple out-of-school suspensions for IDEA students."
+    data_type: "object"
+    confidence: "high"
+
+  - schema_field: "discipline.crdc.expulsions"
+    source: "crdc_expulsions"
+    source_column: "SCH_DISCWODIS_EXPWE_* and SCH_DISCWODIS_EXPWOE_* (36 columns)"
+    description: "Expulsions with and without educational services, by race/sex/disability."
+    data_type: "object"
+    confidence: "high"
+
+  - schema_field: "discipline.crdc.corporal_punishment"
+    source: "crdc_corporal_punishment"
+    source_column: "SCH_CORP_IND, SCH_PSCORPINSTANCES_ALL"
+    description: "Whether corporal punishment is used (Yes/No) and total instances. WA does not allow corporal punishment — expect all No/0."
+    data_type: "object"
+    confidence: "high"
+    note: "WA schools should all show No/0. If any show Yes, flag as data quality issue."
+
+  # ---- SAFETY: RESTRAINT & SECLUSION ----
+
+  - schema_field: "safety.restraint_seclusion.mechanical"
+    source: "crdc_restraint_seclusion"
+    source_column: "SCH_RSINSTANCES_MECH_WODIS, SCH_RSINSTANCES_MECH_IDEA, SCH_RSINSTANCES_MECH_504"
+    description: "Mechanical restraint instances by disability status."
+    data_type: "object"
+    suppression_handling: "-9 → null. Zero → 0."
+    confidence: "high"
+    caveat: "GAO flagged data quality issues. Present with explicit caveat in briefing."
+
+  - schema_field: "safety.restraint_seclusion.physical"
+    source: "crdc_restraint_seclusion"
+    source_column: "SCH_RSINSTANCES_PHYS_WODIS, SCH_RSINSTANCES_PHYS_IDEA, SCH_RSINSTANCES_PHYS_504"
+    description: "Physical restraint instances by disability status."
+    data_type: "object"
+    confidence: "high"
+    caveat: "GAO flagged data quality issues."
+
+  - schema_field: "safety.restraint_seclusion.seclusion"
+    source: "crdc_restraint_seclusion"
+    source_column: "SCH_RSINSTANCES_SECL_WODIS, SCH_RSINSTANCES_SECL_IDEA, SCH_RSINSTANCES_SECL_504"
+    description: "Seclusion instances by disability status."
+    data_type: "object"
+    confidence: "high"
+    caveat: "GAO flagged data quality issues."
+
+  - schema_field: "safety.referrals_arrests.referrals"
+    source: "crdc_referrals_arrests"
+    source_column: "SCH_DISCWODIS_REF_* (18 columns by race/sex)"
+    description: "Law enforcement referrals by race and sex."
+    data_type: "object"
+    suppression_handling: "-9 → null, -5 → null (small count suppression). Zero → 0."
+    confidence: "high"
+
+  - schema_field: "safety.referrals_arrests.arrests"
+    source: "crdc_referrals_arrests"
+    source_column: "SCH_DISCWODIS_ARR_* (18 columns by race/sex)"
+    description: "School-related arrests by race and sex."
+    data_type: "object"
+    confidence: "high"
+
+  - schema_field: "safety.harassment_bullying.allegations"
+    source: "crdc_harassment_bullying"
+    source_column: "SCH_HBALLEGATIONS_SEX, SCH_HBALLEGATIONS_ORI, SCH_HBALLEGATIONS_RAC, SCH_HBALLEGATIONS_DIS, SCH_HBALLEGATIONS_REL"
+    description: "Harassment/bullying allegations by type: sex, orientation, race, disability, religion."
+    data_type: "object"
+    confidence: "high"
+
+  # ---- STAFFING ----
+
+  - schema_field: "staffing.teacher_fte_total"
+    source: "crdc_school_support"
+    source_column: "SCH_FTETEACH_TOT"
+    description: "Total teacher FTE (full-time equivalent)."
+    data_type: "float"
+    confidence: "high"
+
+  - schema_field: "staffing.teacher_fte_certified"
+    source: "crdc_school_support"
+    source_column: "SCH_FTETEACH_CERT"
+    description: "FTE teachers with full certification."
+    data_type: "float"
+    confidence: "high"
+
+  - schema_field: "staffing.teacher_fte_not_certified"
+    source: "crdc_school_support"
+    source_column: "SCH_FTETEACH_NOTCERT"
+    description: "FTE teachers without full certification."
+    data_type: "float"
+    confidence: "high"
+
+  - schema_field: "staffing.counselor_fte"
+    source: "crdc_school_support"
+    source_column: "SCH_FTECOUNSELORS"
+    description: "FTE school counselors."
+    data_type: "float"
+    confidence: "high"
+
+  - schema_field: "staffing.nurse_fte"
+    source: "crdc_school_support"
+    source_column: "SCH_FTESERVICES_NUR"
+    description: "FTE school nurses."
+    data_type: "float"
+    confidence: "high"
+
+  - schema_field: "staffing.psychologist_fte"
+    source: "crdc_school_support"
+    source_column: "SCH_FTESERVICES_PSY"
+    description: "FTE school psychologists."
+    data_type: "float"
+    confidence: "high"
+
+  - schema_field: "staffing.social_worker_fte"
+    source: "crdc_school_support"
+    source_column: "SCH_FTESERVICES_SOC"
+    description: "FTE school social workers."
+    data_type: "float"
+    confidence: "high"
+
+  - schema_field: "staffing.sro_fte"
+    source: "crdc_school_support"
+    source_column: "SCH_FTESECURITY_LEO"
+    description: "FTE law enforcement officers (school resource officers)."
+    data_type: "float"
+    confidence: "high"
+
+  - schema_field: "staffing.security_guard_fte"
+    source: "crdc_school_support"
+    source_column: "SCH_FTESECURITY_GUA"
+    description: "FTE security guards (not law enforcement)."
+    data_type: "float"
+    confidence: "high"
+
+  # ---- FINANCE ----
+
+  - schema_field: "finance.per_pupil_total"
+    source: "ospi_ppe"
+    source_column: "Total_PPE"
+    description: "Total per-pupil expenditure."
+    data_type: "float"
+    cleaning_rule: "Filter to Organization Level='School', most recent year. Parse as float (may have commas: '17,778.96')."
+    confidence: "high"
+
+  - schema_field: "finance.per_pupil_local"
+    source: "ospi_ppe"
+    source_column: "Local PPE"
+    description: "Per-pupil expenditure from local sources."
+    data_type: "float"
+    confidence: "high"
+
+  - schema_field: "finance.per_pupil_state"
+    source: "ospi_ppe"
+    source_column: "State PPE"
+    description: "Per-pupil expenditure from state sources."
+    data_type: "float"
+    confidence: "high"
+
+  - schema_field: "finance.per_pupil_federal"
+    source: "ospi_ppe"
+    source_column: "Federal PPE"
+    description: "Per-pupil expenditure from federal sources."
+    data_type: "float"
+    confidence: "high"
+
+  # ---- COURSE ACCESS ----
+
+  - schema_field: "course_access.ap.indicator"
+    source: "crdc_advanced_placement"
+    source_column: "SCH_APSCIENR_IND"
+    description: "Whether school offers AP courses (Yes/No indicator)."
+    data_type: "boolean"
+    confidence: "high"
+
+  - schema_field: "course_access.ap.enrollment_by_race"
+    source: "crdc_advanced_placement"
+    source_column: "SCH_APENR_* (18 columns by race/sex)"
+    description: "AP enrollment by race and sex."
+    data_type: "object"
+    suppression_handling: "-9 → null (school doesn't offer AP)."
+    confidence: "high"
+
+  - schema_field: "course_access.dual_enrollment.indicator"
+    source: "crdc_dual_enrollment"
+    source_column: "SCH_DUAL_IND"
+    description: "Whether school offers dual enrollment (Yes/No)."
+    data_type: "boolean"
+    confidence: "high"
+
+  - schema_field: "course_access.dual_enrollment.enrollment_by_race"
+    source: "crdc_dual_enrollment"
+    source_column: "SCH_DUALENR_* (18 columns by race/sex)"
+    description: "Dual enrollment by race and sex."
+    data_type: "object"
+    confidence: "high"
+
+  - schema_field: "course_access.gifted_talented.indicator"
+    source: "crdc_gifted_talented"
+    source_column: "SCH_GT_IND"
+    description: "Whether school has a gifted/talented program (Yes/No)."
+    data_type: "boolean"
+    confidence: "high"
+
+  - schema_field: "course_access.gifted_talented.enrollment_by_race"
+    source: "crdc_gifted_talented"
+    source_column: "SCH_GTENR_* (18 columns by race/sex)"
+    description: "Gifted/talented enrollment by race and sex."
+    data_type: "object"
+    confidence: "high"
+
+  # ---- SQSS: 9TH GRADE ON TRACK & DUAL CREDIT ----
+
+  - schema_field: "academics.ninth_grade_on_track_pct"
+    source: "ospi_sqss"
+    source_column: "Percent (where Measure='Ninth Grade on Track')"
+    description: "Percentage of 9th graders on track to graduate. Only applies to high schools."
+    data_type: "float"
+    cleaning_rule: "Filter to Measure='Ninth Grade on Track', StudentGroupType='All Students', GradeLevel='All Grades'."
+    suppression_handling: "If DAT_Reason='No Students', this school has no 9th graders. Store as null with no_students:true (not suppression)."
+    confidence: "high"
+
+  - schema_field: "academics.dual_credit_pct"
+    source: "ospi_sqss"
+    source_column: "Percent (where Measure='Dual Credit')"
+    description: "Percentage of students earning dual credit. Only applies to high schools."
+    data_type: "float"
+    confidence: "high"
+
+  # ---- OFFENSES ----
+
+  - schema_field: "safety.offenses"
+    source: "crdc_offenses"
+    source_column: "SCH_OFFENSE_* (25 columns)"
+    description: "School offenses by type: attacks with weapon (ATTWW), attacks without (ATTWOW), possession of weapon (POSSWX), robbery, threats, sexual assault (RAPE, BATT), firearm, homicide."
+    data_type: "object"
+    confidence: "high"
+
+  # ---- METADATA ----
+
+  - schema_field: "metadata.ospi_school_code"
+    source: "ccd_directory"
+    source_column: "ST_SCHID (parsed: last segment after second dash)"
+    description: "OSPI school code extracted from CCD ST_SCHID field."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "metadata.ospi_district_code"
+    source: "ccd_directory"
+    source_column: "ST_SCHID (parsed: middle segment)"
+    description: "OSPI district code extracted from CCD ST_SCHID field."
+    data_type: "string"
+    confidence: "high"
+
+  - schema_field: "metadata.crdc_combokey"
+    source: "crdc_enrollment"
+    source_column: "COMBOKEY"
+    description: "CRDC COMBOKEY (same as NCESSCH). Stored for traceability."
+    data_type: "string"
+    confidence: "high"
+
+
+# ============================================================================
+# SUPPRESSION RULES
+# ============================================================================
+
+suppression_rules:
+
+  crdc:
+    "-9":
+      meaning: "Not applicable or skipped. School doesn't serve those grades, or data element doesn't apply."
+      frequency_wa: 1132661
+      store_as: "null"
+      flag: "not_applicable: true"
+
+    "-2":
+      meaning: "Data not available. School should have reported but didn't."
+      frequency_wa: "rare (not observed in WA in this run, but documented in manual)"
+      store_as: "null"
+      flag: "suppressed: true, reason: 'not_reported'"
+
+    "-5":
+      meaning: "Suppressed due to small count (fewer than 5 students in subgroup)."
+      frequency_wa: 2744
+      store_as: "null"
+      flag: "suppressed: true, reason: 'small_count'"
+
+    "-4":
+      meaning: "Suppressed for teacher sex counts."
+      frequency_wa: 1004
+      store_as: "null"
+      flag: "suppressed: true, reason: 'teacher_sex'"
+
+    "-3":
+      meaning: "Secondary suppression (related to another suppressed cell)."
+      frequency_wa: 809
+      store_as: "null"
+      flag: "suppressed: true, reason: 'secondary_suppression'"
+
+    "-12":
+      meaning: "Observed in enrollment only (1,664 occurrences). May be a derived negative delta or rounding artifact."
+      frequency_wa: 1664
+      store_as: "null"
+      flag: "suppressed: true, reason: 'unknown_negative'"
+      confidence: "medium"
+      note: "Needs investigation during pipeline testing. May appear in derived enrollment fields."
+
+    "-13":
+      meaning: "Observed in restraint/seclusion and corporal punishment (30 occurrences). Unknown meaning."
+      frequency_wa: 30
+      store_as: "null"
+      flag: "suppressed: true, reason: 'unknown_negative'"
+      confidence: "medium"
+
+    "0":
+      meaning: "GENUINE ZERO. Zero incidents reported. The school answered the question and the answer is zero."
+      frequency_wa: 1354574
+      store_as: "0"
+      flag: "none — this is real data"
+      critical_note: "Suppressed ≠ zero. This is the project's #1 data integrity rule."
+
+  ospi:
+    "N<10":
+      meaning: "Fewer than 10 students in the subgroup. Suppressed for privacy."
+      frequency_wa: "~550,000+ across all OSPI files"
+      store_as: "null"
+      flag: "suppressed: true, reason: 'n_lt_10'"
+
+    "*":
+      meaning: "Cell masked for privacy. Accompanies N<10 suppression in numeric count/rate columns."
+      frequency_wa: "~323,000 in discipline alone"
+      store_as: "null"
+      flag: "suppressed: true, reason: 'masked'"
+
+    "No Students":
+      meaning: "No students in this category. Different from suppressed — there genuinely are zero qualifying students."
+      frequency_wa: 109154
+      store_as: "null"
+      flag: "no_students: true"
+      note: "This is NOT the same as a zero count. 'No Students' means the school doesn't have the program/grade, not that students didn't perform."
+
+    "Top/Bottom Range":
+      meaning: "Value is at extreme of range and might identify students. Shown as inequality (e.g., '<27.3%', '>72.7%')."
+      frequency_wa: "~170,000+ in discipline"
+      store_as: "null"
+      flag: "suppressed: true, reason: 'top_bottom_range'"
+      note: "Could parse the threshold value for approximate data, but would need to be flagged as approximate."
+      confidence: "medium"
+
+    "Cross Student Group - N<10":
+      meaning: "Related group also has N<10, causing complementary suppression."
+      frequency_wa: "~70,000+"
+      store_as: "null"
+      flag: "suppressed: true, reason: 'cross_group_n_lt_10'"
+
+  ccd:
+    "-1":
+      meaning: "Data not available / not reported by the school."
+      store_as: "null"
+      flag: "suppressed: true, reason: 'not_reported'"
+
+    "Not reported":
+      meaning: "DMS_FLAG value indicating school did not report this data."
+      frequency_wa: 6536
+      store_as: "null"
+      flag: "suppressed: true, reason: 'not_reported'"
+
+
+# ============================================================================
+# DATA VINTAGE NOTES
+# ============================================================================
+
+data_vintages:
+  ccd_directory: "2024-25"
+  ccd_membership: "2024-25"
+  crdc: "2021-22"
+  ospi_enrollment: "2023-24"
+  ospi_assessment: "2023-24"
+  ospi_discipline: "2023-24"
+  ospi_growth: "2024-25 (with 2023-24 fallback)"
+  ospi_sqss: "2024-25"
+  ospi_ppe: "2023-24 (multi-year available 2019-2025)"
+
+vintage_implications:
+  - "CCD (2024-25) is newest. ~128 more WA schools than CRDC (2021-22) because schools opened after 2021-22."
+  - "OSPI enrollment (2023-24) will differ from CCD enrollment (2024-25) because different years. Expected, not a bug."
+  - "CRDC (2021-22) discipline data is 3+ years old. OSPI discipline (2023-24) is newer but less detailed."
+  - "Schools that opened after 2021-22 will have no CRDC data. Briefing must note this."
+  - "Enrollment numbers across sources will NOT match because they're different school years. The briefing must disclose the data vintage for each metric."
