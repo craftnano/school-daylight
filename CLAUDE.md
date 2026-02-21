@@ -1,0 +1,133 @@
+# School Daylight
+
+## About This Project
+
+Civic transparency tool generating school briefings from public education data. Batch ETL pipeline → MongoDB → AI enrichment → cached briefings → Streamlit frontend. NOT a rating site. An interpretation layer.
+
+The builder is not a developer. All code is written by Claude Code agents. Code must be understandable, maintainable, and debuggable by someone who reads Python but doesn't write it. This constraint is non-negotiable and takes priority over cleverness, conciseness, or performance optimization.
+
+## Architecture
+
+```
+pipeline/           # ETL scripts, run in numbered order (01_, 02_, etc.)
+config.py           # SINGLE source of truth for all credentials and settings
+cleaning_rules.yaml # Every data transformation, readable without code
+prompts/            # AI prompts, versioned plaintext, never embedded in code
+tests/              # Testing utility scripts
+app/                # Streamlit frontend
+docs/               # Methodology, data governance, build log
+```
+
+- **Database:** MongoDB Atlas (free M0 tier). One document per school, everything embedded.
+- **Primary key:** NCES ID (12-char string, never convert to integer).
+- **AI stack:** Haiku for context enrichment, Sonnet for narrative generation. Batch API for bulk runs.
+- **Frontend:** Streamlit. No auth, no tracking.
+
+## Critical Rules
+
+### Credentials
+- ALL credentials in `config.py` which reads from `.env`. No exceptions.
+- NEVER hardcode connection strings, API keys, or secrets anywhere else.
+- `.env` is in `.gitignore`. Always. Check before every commit.
+- `.env.example` shows required variables without real values.
+
+### Data Integrity
+- Suppressed values → `null` with `"suppressed": true`. NEVER store as zero or empty string.
+- Zero means "zero incidents." Null-suppressed means "can't tell you." These are different.
+- NCES IDs are 12-character strings. Never let pandas convert them to integers (leading zeros get stripped).
+- All percentages stored as decimals (0.0–1.0). Never mix scales.
+- Pipeline is idempotent. Drop and recreate collection on each full load. Safe to run twice.
+
+### Non-Coder Maintainability (READ THIS FIRST)
+Every design decision must pass this test: "Can the builder diagnose and fix a problem at 11pm on a Tuesday without calling a developer?" If the answer is no, redesign it.
+
+**Logging:** Every script logs to both console and a timestamped log file in `logs/`. Log messages are complete English sentences, not codes. Wrong: `ERR_JOIN_FAIL: 114`. Right: `114 schools failed to join CRDC data. Most common reason: NCES ID not found in CRDC file (87 schools). See logs/join_failures_2026-03-15.csv for full list.`
+
+**Error messages:** Every error must say three things: what went wrong, why it probably happened, and what to try. Wrong: `ConnectionError: timeout`. Right: `Could not connect to MongoDB Atlas. This usually means: (1) your internet connection is down, (2) the connection string in .env is wrong, or (3) Atlas IP whitelist doesn't include your current IP. Check .env MONGO_URI and try again.`
+
+**Config over code:** Anything the builder might need to change lives in YAML or .env, not in Python. Cleaning rules, flag thresholds, suppression markers, prompt templates, comparison group definitions. If it's a number or a string that affects output, it's config.
+
+**File naming:** Scripts are numbered for run order: `01_load_nces.py`, `02_load_crosswalk.py`. A non-coder can see the sequence by listing the directory.
+
+**Comments:** Comment the WHY, not the WHAT. Wrong: `# load the CSV`. Right: `# OSPI uses state codes, not NCES IDs. We need the crosswalk to join.` Every function gets a one-line docstring explaining its purpose in plain English. Every non-obvious decision gets a comment explaining why this approach was chosen over the obvious alternative. A non-coder reading the code should be able to follow the reasoning even if they can't follow the syntax.
+
+**No magic:** No decorators, metaclasses, abstract base classes, or design patterns that require Python expertise to understand. Straightforward procedural code. Functions with clear names. If a junior developer would need to Google it, don't use it.
+
+**Dependency pinning:** `requirements.txt` with exact versions (`pandas==2.2.1`, not `pandas>=2.0`). A `pip install` today must produce the same result six months from now.
+
+**Git commits:** Every commit message explains what changed AND why. Wrong: `fix bug`. Right: `Fix OSPI join: crosswalk file uses 4-digit school codes, not 5-digit. Added zero-padding in step 02.`
+
+## Commands
+
+```bash
+# Run the full pipeline
+python pipeline/run_pipeline.py
+
+# Run a single step
+python pipeline/01_load_nces.py
+
+# Run the testing utility
+python tests/run_tests.py
+
+# Run tests for a specific layer
+python tests/run_tests.py --layer data_integrity
+
+# Check the health of everything
+python scripts/health_check.py
+
+# Launch the frontend locally
+streamlit run app/main.py
+```
+
+## Verification Receipts
+
+Every phase produces a `verification_receipt.md` in `docs/receipts/`. This is how the builder knows the agent's work is correct. The receipt is a plain-English document, not a log file. It shows:
+- What was tested
+- Expected result vs. actual result
+- Pass/fail for each check
+- Plain-English explanation of any failures
+- Suggested fix for any failures
+
+The builder reads the receipt, not the code. If the receipt is green, proceed. If red, the agent stops and reports.
+
+## Golden School
+
+Fairhaven Middle School (Bellingham, WA) is the hand-verified reference school. After any data load or pipeline change, Fairhaven must pass field-by-field verification. If Fairhaven is wrong, nothing ships. See `tests/golden_schools.yaml` for expected values.
+
+## File Boundaries
+
+- **Safe to edit:** everything in `pipeline/`, `app/`, `tests/`, `prompts/`, `docs/`
+- **Edit with caution:** `config.py`, `cleaning_rules.yaml`, `requirements.txt`
+- **Never touch:** `.env` (contains real secrets), `.git/`, `node_modules/`, `__pycache__/`
+- **Never delete:** `docs/receipts/`, `docs/build_log.md`, `logs/`
+
+## Health Check Script
+
+`scripts/health_check.py` tests all external dependencies and reports in plain English:
+
+```
+MongoDB Atlas:     ✓ Connected (2,312 schools loaded, last refresh 2026-03-15)
+Anthropic API:     ✓ Key valid (Haiku and Sonnet accessible)
+Data freshness:    ✓ CRDC 2021-22, NCES 2023-24, OSPI 2024-25
+Fairhaven check:   ✓ Enrollment 587, FRL 48.2%, all fields present
+Disk space:        ✓ 2.1 GB free
+Last pipeline run: 2026-03-15 09:42 PST (completed successfully)
+```
+
+If any check fails, it says why and what to do about it.
+
+## What This Project Is NOT
+
+- Not a real-time system. All data is batch-loaded. Briefings are pre-generated and cached.
+- Not a rating site. No scores, no rankings, no comparisons between schools.
+- Not a social platform. No user accounts, no comments, no forums.
+- Not a startup. Free, open source, no monetization. MIT license for code, CC BY 4.0 for docs.
+
+## Key Design Documents
+
+For detailed architecture and methodology, see these docs (read them, don't embed them in context):
+- `docs/foundation.md` — Full product specification, mission, architecture, known risks
+- `docs/build_sequence.md` — Phase-by-phase build plan with prompts and verification gates
+- `docs/testing_utility.md` — 5-layer test specification, golden school pattern
+- `docs/data_dictionary.yaml` — Every source column mapped to schema (created in Phase 1)
+- `docs/build_log.md` — Chronological record of every decision with reasoning

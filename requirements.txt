@@ -1,0 +1,7 @@
+# School Daylight - Phase 1 dependencies
+# Pinned to exact versions so pip install today = same result in six months
+
+pandas==2.2.1
+pyyaml==6.0.1
+openpyxl==3.1.2
+python-dotenv==1.0.1
