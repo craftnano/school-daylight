@@ -1,9 +1,22 @@
 # Phase 2 — Phase Exit Document
 
-**Date:** (pending builder review)
-**Reviewed by:** (pending)
+**Date:** 2026-02-21
+**Reviewed by:** Orianda Leigh (builder/project owner)
 **Phase:** ETL Pipeline + MongoDB Load
-**Verdict:** (pending)
+**Verdict:** APPROVED TO PROCEED TO PHASE 3
+
+---
+
+## Human Review Log
+
+- **Receipt reviewed:** All 19 checks PASS (13 Fairhaven field checks + 6 integrity checks). Accepted.
+- **Fairhaven verified:** All fields match expected values. Growth SGP values use 2024-25 data (ELA=56, Math=60), not the 2023-24 values verified in Phase 1 (ELA=61, Math=68). This is correct behavior — the pipeline uses 2024-25 as primary and Fairhaven is present in that file. Accepted.
+- **Decision log reviewed:** 5 deviations from the implementation plan, all accepted:
+  1. Growth SGP year change (2024-25 vs 2023-24) — correct per fallback rule
+  2. Growth count columns named `*_growth_count` instead of percentages — confirmed as counts
+  3. PPE SchoolCode unique statewide (0 collisions) — simple join works
+  4. CRDC -12/-13 count 998 vs Phase 1 estimate of 1,694 — difference is non-data columns
+  5. CRDC FTE float precision from raw data — preserve raw, round in frontend
 
 ---
 
@@ -18,15 +31,16 @@
 - **Join failure rate: 2.3%** (target was < 5%)
 - **998 instances** of CRDC -12/-13 logged to CSV
 
-## Files to Review
+---
 
-1. `phases/phase-2/receipt.md` — Full verification receipt with pass/fail for all checks
-2. `phases/phase-2/fairhaven_test.md` — Fairhaven field-by-field from live MongoDB
-3. `phases/phase-2/decision_log.md` — 5 deviations from the implementation plan
-4. `phases/phase-2/implementation_plan.md` — Approved blueprint (for reference)
+## Known Issues Carried Forward to Phase 3
 
-## Known Issues for Phase 3+
+1. **CRDC -12/-13 manual review:** 998 instances logged to `logs/crdc_unknown_markers.csv`. These are undocumented suppression codes treated as suppressed. Manual review should confirm no real data is being discarded. Briefings must disclose the caveat.
+2. **FTE display rounding:** CRDC FTE values have single-precision float artifacts (e.g., 33.599998 instead of 33.6). Frontend display should round to 1 decimal place. Math proficiency similarly needs rounding to 3 decimals (0.5489999999999999 → 0.549).
+3. **schema.yaml updates from deviation #2:** Growth fields are stored as `*_growth_count` (integer counts), not `*_growth_pct` (percentages). The `data/schema.yaml` should be updated to reflect the actual field names used in the pipeline.
 
-1. CRDC FTE values have single-precision float artifacts (e.g., 33.599998 instead of 33.6). Frontend should round to 1 decimal for display.
-2. Growth SGP uses 2024-25 data (differs from Phase 1's 2023-24 verification values). This is correct per the fallback rule.
-3. Math proficiency has standard float imprecision (0.5489999999999999 vs 0.549). Display should round to 3 decimals.
+---
+
+## Go/No-Go
+
+Phase 2: GO. Proceed to Phase 3.
