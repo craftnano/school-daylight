@@ -1,0 +1,264 @@
+# cleaning_rules.yaml — Every transformation the pipeline applies, readable without code.
+#
+# This file is the human-readable reference for what the pipeline does to raw data.
+# A non-coder can read this file and understand every transformation, suppression rule,
+# join key, and filter applied. The pipeline scripts implement these rules; this file
+# documents them.
+
+version: "2026-02-v1"
+
+dataset_version: "2026-02-v1"
+
+# ============================================================================
+# DATA SOURCES
+# ============================================================================
+
+sources:
+  ccd_directory:
+    file: "data/ccd_wa_directory.csv"
+    description: "CCD school directory — one row per WA school"
+    filter: "Open schools only (SY_STATUS_TEXT contains 'Open')"
+    id_column: "NCESSCH"
+    dtype_overrides: {NCESSCH: str, LEAID: str, ST_SCHID: str}
+    crosswalk_parse: "ST_SCHID format WA-{DistrictCode}-{SchoolCode}"
+    pipeline_step: "01_build_spine.py"
+
+  ccd_membership:
+    file: "data/ccd_wa_membership.csv"
+    description: "CCD enrollment — one row per school, pre-aggregated in Phase 1"
+    id_column: "ncessch"
+    pipeline_step: "02_load_enrollment.py"
+
+  ospi_enrollment:
+    file: "WA-raw/ospi/Report_Card_Enrollment_2023-24_School_Year.csv"
+    description: "OSPI enrollment by student group — FRL, ELL, SPED, etc."
+    filter: "OrganizationLevel == 'School' AND GradeLevel == 'All Grades'"
+    join_via: "DistrictCode + SchoolCode → crosswalk lookup"
+    pipeline_step: "03_load_ospi_enrollment.py"
+
+  ospi_assessment:
+    file: "WA-raw/ospi/Report_Card_Assessment_Data_2023-24.csv"
+    description: "OSPI assessment proficiency rates by subject"
+    filter: >
+      OrganizationLevel == 'School' AND StudentGroupType == 'All'
+      AND GradeLevel == 'All Grades'
+    join_via: "DistrictCode + SchoolCode → crosswalk lookup"
+    pipeline_step: "04_load_ospi_academics.py"
+
+  ospi_growth_primary:
+    file: "WA-raw/ospi/Report_Card_Growth_for_2024-25.csv"
+    description: "OSPI student growth percentiles — primary year"
+    filter: >
+      OrganizationLevel == 'School' AND StudentGroupType == 'AllStudents'
+      AND GradeLevel == 'All Grades'
+    join_via: "DistrictCode + SchoolCode → crosswalk lookup"
+    pipeline_step: "04_load_ospi_academics.py"
+
+  ospi_growth_fallback:
+    file: "WA-raw/ospi/Report_Card_Growth_for_2023-24.csv"
+    description: "OSPI student growth percentiles — fallback year (used only when school has zero rows in primary)"
+    filter: "Same as primary"
+    pipeline_step: "04_load_ospi_academics.py"
+
+  ospi_sqss:
+    file: "WA-raw/ospi/Report_Card_SQSS_for_2024-25.csv"
+    description: "OSPI School Quality and Student Success — attendance, 9th grade on track, dual credit"
+    filter_attendance: >
+      Measure == 'Regular Attendance' AND StudentGroupType == 'All Students'
+      AND GradeLevel == 'All Grades'
+    filter_ninth_grade: >
+      Measure == 'Ninth Grade on Track' AND StudentGroupType == 'All Students'
+      AND GradeLevel == 'All Grades'
+    filter_dual_credit: >
+      Measure == 'Dual Credit' AND StudentGroupType == 'All Students'
+      AND GradeLevel == 'All Grades'
+    join_via: "DistrictCode + SchoolCode → crosswalk lookup"
+    pipeline_step: "04_load_ospi_academics.py"
+
+  ospi_discipline:
+    file: "WA-raw/ospi/Report_Card_Discipline_for_2023-24.csv"
+    description: "OSPI discipline rates — aggregate rates per school"
+    filter: >
+      OrganizationLevel == 'School' AND Student Group == 'All Students'
+      AND GradeLevel == 'All'
+    cleaning: "Strip commas from DistrictCode and SchoolCode before joining (comma-in-IDs bug)"
+    join_via: "DistrictCode + SchoolCode → crosswalk lookup (after comma stripping)"
+    pipeline_step: "05_load_ospi_discipline.py"
+
+  ospi_ppe:
+    file: "WA-raw/ospi/Per_Pupil_Expenditure_AllYears.csv"
+    description: "OSPI per-pupil expenditure by school"
+    filter: "Organization Level == 'School' AND School Year Code == '2023-24'"
+    join_via: "SchoolCode → metadata.ospi_school_code (verify uniqueness, log collisions)"
+    pipeline_step: "06_load_ospi_finance.py"
+
+  crdc:
+    directory: "data/crdc_wa/"
+    description: "CRDC Civil Rights Data Collection — 13 files covering discipline, safety, staffing, courses"
+    files:
+      - enrollment
+      - suspensions
+      - expulsions
+      - restraint_and_seclusion
+      - referrals_and_arrests
+      - harassment_and_bullying
+      - school_support
+      - advanced_placement
+      - dual_enrollment
+      - gifted_and_talented
+      - offenses
+      - corporal_punishment
+      - school_characteristics
+    id_column: "COMBOKEY"
+    join: "COMBOKEY == NCESSCH (direct 12-char string match)"
+    pipeline_step: "07_load_crdc.py"
+
+# ============================================================================
+# SUPPRESSION RULES
+# ============================================================================
+# These define how the pipeline handles suppressed, masked, or missing data.
+# The cardinal rule: zero means zero. Null means "can't tell you."
+
+suppression_rules:
+  crdc:
+    "-9":
+      store: null
+      flag: {not_applicable: true}
+      meaning: "Not applicable to this school"
+    "-5":
+      store: null
+      flag: {suppressed: true, reason: small_count}
+      meaning: "Suppressed because student count is too small to report"
+    "-4":
+      store: null
+      flag: {suppressed: true, reason: teacher_sex}
+      meaning: "Suppressed because reporting would reveal teacher sex"
+    "-3":
+      store: null
+      flag: {suppressed: true, reason: secondary}
+      meaning: "Suppressed as secondary suppression (to protect other cells)"
+    "-2":
+      store: null
+      flag: {suppressed: true, reason: not_reported}
+      meaning: "Data was not reported by the district"
+    "-12":
+      store: null
+      flag: {suppressed: true, reason: unknown_negative}
+      action: log_instance
+      meaning: "Undocumented code — 1,664 instances in WA data. Treating as suppressed."
+    "-13":
+      store: null
+      flag: {suppressed: true, reason: unknown_negative}
+      action: log_instance
+      meaning: "Undocumented code — 30 instances in WA data. Treating as suppressed."
+    "0":
+      store: 0
+      flag: null
+      meaning: "Genuine zero — zero incidents. Real data, NOT suppressed."
+
+  ospi:
+    "N<10":
+      store: null
+      flag: {suppressed: true, reason: n_lt_10}
+      meaning: "Student count less than 10, suppressed for privacy"
+    "*":
+      store: null
+      flag: {suppressed: true, reason: masked}
+      meaning: "Value masked (asterisk)"
+    "No Students":
+      store: null
+      flag: {no_students: true}
+      meaning: "No students in this category at this school"
+    top_bottom_range:
+      pattern: "starts with < or >"
+      store: null
+      flag: {suppressed: true, reason: top_bottom_range}
+      meaning: "Value is a range like '<27.3%' or '>72.7%'. Stored as null, not parsed as approximate."
+    cross_group:
+      pattern: "DATReason contains 'Cross Student Group'"
+      store: null
+      flag: {suppressed: true, reason: cross_group}
+      meaning: "Suppressed because reporting would reveal cross-group identity"
+
+  ccd:
+    "-1":
+      store: null
+      flag: {suppressed: true, reason: not_reported}
+      meaning: "Data not reported by the school or district"
+
+# ============================================================================
+# PERCENTAGE RULES
+# ============================================================================
+
+percentage_rules:
+  - "All percentages stored as 0.0-1.0 decimals, never as 0-100"
+  - "OSPI percentage strings (e.g., '64.90%'): strip '%', divide by 100"
+  - "OSPI decimal values already in 0.0-1.0: use as-is"
+  - "CRDC has no percentage fields (raw counts only)"
+
+# ============================================================================
+# TYPE RULES
+# ============================================================================
+
+type_rules:
+  - "NCES IDs: always 12-char strings, read with dtype=str. Never convert to integer."
+  - "Enrollment counts: integers"
+  - "FTE values: floats (e.g., 33.6 teachers)"
+  - "PPE values: floats (strip commas first — '$17,778.96' → 17778.96)"
+  - "Booleans: 'Yes' → true, 'No' → false"
+  - "OSPI district/school codes: strings (strip commas if present)"
+
+# ============================================================================
+# CRDC RACE/SEX MAPPING
+# ============================================================================
+# Maps CRDC column suffixes to schema keys.
+# Example: column SCH_DISCWODIS_ISS_HI_M → hispanic_male
+
+crdc_race_mapping:
+  HI: hispanic
+  AM: american_indian
+  AS: asian
+  HP: pacific_islander
+  BL: black
+  WH: white
+  TR: two_or_more
+
+crdc_sex_suffixes:
+  _M: male
+  _F: female
+
+# ============================================================================
+# GROWTH FALLBACK RULE
+# ============================================================================
+# Approved clarification from builder: fall back to 2023-24 ONLY when the school
+# has zero rows in the 2024-25 file. If the school is present in 2024-25 but
+# suppressed, keep the suppressed null — do NOT fall back.
+
+growth_fallback:
+  primary_year: "2024-25"
+  fallback_year: "2023-24"
+  trigger: "School has zero rows in primary year file"
+  no_trigger: "School is present in primary year but values are suppressed"
+
+# ============================================================================
+# KNOWN DATA ISSUES
+# ============================================================================
+
+known_issues:
+  crdc_unknown_markers:
+    description: "CRDC codes -12 and -13 are undocumented"
+    count: "1,694 total instances (1,664 × -12, 30 × -13)"
+    handling: "Treat as suppressed, log every instance to logs/crdc_unknown_markers.csv"
+
+  ospi_discipline_comma_bug:
+    description: "OSPI Discipline file has commas in DistrictCode and SchoolCode"
+    example: "'2,066' instead of '2066'"
+    handling: "Strip commas before joining"
+
+  unmatched_ospi_schools:
+    description: "6 schools with 9xx district codes won't match the CCD spine"
+    handling: "Log and continue — these are ESDs/special entities"
+
+  missing_crdc_schools:
+    description: "~128 CCD schools have no CRDC data (opened after 2021-22)"
+    handling: "Mark join_status as 'missing_crdc'"
