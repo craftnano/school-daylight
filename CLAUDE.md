@@ -37,6 +37,7 @@ docs/               # Methodology, data governance, build log
 - NCES IDs are 12-character strings. Never let pandas convert them to integers (leading zeros get stripped).
 - All percentages stored as decimals (0.0–1.0). Never mix scales.
 - Pipeline is idempotent. Drop and recreate collection on each full load. Safe to run twice.
+- Every MongoDB document must include `metadata.dataset_version` (e.g., `"2026-02-v1"`) and `metadata.load_timestamp` (ISO 8601) at the document root. These enable provenance tracking across pipeline runs.
 
 ### Non-Coder Maintainability (READ THIS FIRST)
 Every design decision must pass this test: "Can the builder diagnose and fix a problem at 11pm on a Tuesday without calling a developer?" If the answer is no, redesign it.
@@ -89,6 +90,8 @@ Every phase produces a `verification_receipt.md` in `docs/receipts/`. This is ho
 - Suggested fix for any failures
 
 The builder reads the receipt, not the code. If the receipt is green, proceed. If red, the agent stops and reports.
+
+Every Phase 2+ receipt must include SHA256 hashes for all source input files. This makes idempotent reruns provable, not just aspirational.
 
 ## Golden School
 
