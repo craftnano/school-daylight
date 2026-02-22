@@ -15,10 +15,16 @@
 # flag_absent_reason for all excluded schools.
 
 excluded_schools:
+  - ncessch: "530039003883"
+    name: Bellevue Digital Discovery
+    reason: >-
+      Virtual/online school (K-12). CCD codes it as "Regular School" but
+      it operates as a fully online program. Comparing a virtual school
+      against brick-and-mortar schools on FRL-vs-proficiency is misleading.
+
   - ncessch: "530033002802"
     name: Mosaic Home Education Partnership
     reason: >-
       Homeschool cooperative. CCD codes it as "Alternative School" (already
-      excluded by school_type filter), but listed here as the first manual
-      entry to establish the pattern for future edge cases where CCD codes
-      a non-traditional school as "Regular School."
+      excluded by school_type filter), but listed here to document the
+      edge case.
