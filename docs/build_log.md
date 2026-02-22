@@ -50,3 +50,9 @@ Null-FRL investigation revealed 60 Regular School entries that are non-tradition
 ## 2026-02-22 — Discipline disparity small-N analysis
 
 Discipline disparity small-N analysis. 29 of 65 schools with 10x+ ratios have fewer than 20 students in the triggering subgroup. Current minimum-N threshold of 10 is too low — produces statistically meaningless extreme ratios. Decision: raise floor to 30 before Phase 5. Schools with subgroups of 10-29 will get ratio suppressed with reason code `suppressed_subgroup_lt_30`. Requires Phase 3 comparison engine rerun before Phase 5. Does not affect Phase 4.
+
+---
+
+## 2026-02-22 — Chronic absenteeism threshold audit
+
+Chronic absenteeism threshold audit. 64% of schools trip yellow or red at current 20%/30% thresholds — flag is miscalibrated for post-COVID distribution. Decision: raise thresholds to approximately 30%/45% before Phase 5. Exact values TBD after reviewing adjusted distribution. Requires Phase 3 rerun. Does not affect Phase 4.

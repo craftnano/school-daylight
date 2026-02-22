@@ -91,3 +91,40 @@ Examples of real signal at 30+ students: Ballard High School (47 Black students,
 **Implementation:** Deferred. Requires a Phase 3 comparison engine rerun before Phase 5 (narrative generation). Does not affect Phase 4 (AI context enrichment), which does not consume disparity ratios directly. The change will be applied to `pipeline/12_compute_ratios.py` and `flag_thresholds.yaml` during the pre-Phase 5 rerun.
 
 **Impact:** Approximately 200-300 schools currently receiving disparity ratios based on subgroups of 10-29 students will have those ratios suppressed. The discipline disparity flag distribution will shift — fewer yellow and red flags, more nulls with the `suppressed_subgroup_lt_30` reason. Schools with 30+ students in the subgroup retain their ratios and flags unchanged.
+
+---
+
+## 6. Chronic absenteeism thresholds miscalibrated for post-COVID era
+
+**Date:** 2026-02-22
+
+**Context:** Builder requested distribution analysis of all four climate/equity flags. The chronic absenteeism flag distribution revealed severe miscalibration against the current (2023-24) data:
+
+| Flag | Threshold | Count | % of schools with data |
+|------|-----------|-------|----------------------|
+| Green | <=20% | 708 | 36.1% |
+| Yellow | >20%, <=30% | 613 | 31.3% |
+| Red | >30% | 640 | 32.6% |
+
+64% of schools trip yellow or red. A flag that fires on nearly two-thirds of schools has lost its discriminating power — it identifies the norm, not the outliers.
+
+The original thresholds (20% yellow, 30% red) were based on pre-pandemic benchmarks. Post-COVID chronic absenteeism rates have shifted dramatically statewide. The 2023-24 OSPI data reflects this new baseline: the median school is near the 20-30% range, which is the yellow band. The thresholds need to be recalibrated to the current distribution so the flag identifies schools that are meaningfully worse than their peers, not schools that are experiencing the same statewide trend.
+
+Detailed distribution:
+- 0-10%: 246 schools
+- 10-20%: 457 schools
+- 20-30%: 615 schools (peak — this is the current norm)
+- 30-40%: 397 schools
+- 40-50%: 151 schools
+- 50-60%: 47 schools
+- 60-70%: 22 schools
+- 70-80%: 10 schools
+- 80-100%: 16 schools
+
+**Decision:** Raise thresholds to approximately 30% (yellow) and 45% (red) before Phase 5. Exact values TBD after reviewing the adjusted distribution during the pre-Phase 5 rerun. The goal is a flag distribution where approximately 15-20% of schools are red, indicating they are meaningfully above the post-COVID statewide norm.
+
+Additionally, mandatory narrative context about the statewide post-pandemic shift in chronic absenteeism will be added in Phase 5 regardless of the threshold change. Every school briefing that mentions chronic absenteeism should note that rates statewide increased substantially after 2020 and have not returned to pre-pandemic levels. This prevents parents from interpreting a school's rate in isolation without understanding the systemic context.
+
+**Implementation:** Deferred. Requires a Phase 3 comparison engine rerun before Phase 5 (narrative generation). Does not affect Phase 4 (AI context enrichment). The change will be applied to `flag_thresholds.yaml` during the pre-Phase 5 rerun.
+
+**Impact:** Flag distribution will shift from 36/31/33 (green/yellow/red) to approximately 60/20/20, restoring the flag's ability to identify outliers rather than the norm.
