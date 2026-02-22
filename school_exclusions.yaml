@@ -119,6 +119,16 @@ excluded_schools:
     name: WEST VALLEY VIRTUAL ACADEMY K-6
     reason: Virtual/online school.
 
+  # --- Institutional facilities coded as "Regular School" in CCD ---
+
+  - ncessch: "530375001773"
+    name: Echo Glen School
+    reason: >-
+      Juvenile detention facility (DSHS). Issaquah School District
+      provides educational services but enrollment is involuntary and
+      transient. Identified during FRL data review (97.1% FRL reflects
+      institutional population, not community poverty).
+
   # --- Homeschool cooperatives ---
 
   - ncessch: "530033002802"
