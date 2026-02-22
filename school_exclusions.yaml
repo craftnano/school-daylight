@@ -22,6 +22,13 @@ excluded_schools:
       it operates as a fully online program. Comparing a virtual school
       against brick-and-mortar schools on FRL-vs-proficiency is misleading.
 
+  - ncessch: "530063003917"
+    name: BOISTFORT ONLINE SCHOOL
+    reason: >-
+      Virtual/online school. CCD codes it as "Regular School" but
+      it operates as a fully online program with statewide self-selected
+      enrollment that breaks the peer comparison model.
+
   - ncessch: "530033002802"
     name: Mosaic Home Education Partnership
     reason: >-

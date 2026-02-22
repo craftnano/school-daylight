@@ -1,6 +1,6 @@
 # Phase 3 — Verification Receipt
 
-**Generated:** 2026-02-22T05:20:23.279486+00:00
+**Generated:** 2026-02-22T05:26:35.033477+00:00
 **Dataset version:** 2026-02-v1
 **Document count:** 2532
 
@@ -35,16 +35,16 @@
 | High disparity (Enumclaw Sr High School) | PASS | disparity=6.86, flag=red |
 | Single-school district (Washington State School for the Deaf) | PASS | district percentile is null (correct) |
 | Missing CRDC (Clallam Co Juvenile Detention) | PASS | disparity color=null, reason=data_not_available |
-| Low-FRL underperforming (BOISTFORT ONLINE SCHOOL) | PASS | frl=0.01, composite=0.181, flag=underperforming (key insight) |
+| Low-FRL underperforming (White Swan High School) | PASS | frl=0.00, composite=0.203, flag=underperforming (key insight) |
 
 ---
 
 ## Regression Summary
 
-- **Schools with performance flag:** 1152
+- **Schools with performance flag:** 1151
 - **Outperforming (green):** 152
 - **As expected (yellow):** 838
-- **Underperforming (red):** 162
+- **Underperforming (red):** 161
 - **Schools with peer cohort:** 2323
 - **Schools with percentiles:** 2532
 

@@ -40,3 +40,16 @@ Schools excluded by type receive `performance_flag = null` with `performance_fla
 Additionally, a `school_exclusions.yaml` file at the project root provides a manual override list for edge cases where CCD codes a non-traditional school as "Regular School." The pipeline reads this list and applies the same exclusion. Mosaic is the first entry (though it's already caught by the CCD type filter as an "Alternative School").
 
 **Impact:** Regression pool drops from 1,249 to ~1,060 schools. Only "Regular School" types participate in the regression. The remaining flag distribution stays close to the 15/70/15 target because non-traditional schools were mostly in the tails (disproportionately "underperforming" due to their different mission, not genuine underperformance).
+
+---
+
+## 3. Virtual and online schools require manual exclusion from performance regression
+
+**Date:** 2026-02-21
+**Context:** After excluding non-traditional CCD school types (deviation #2), builder review found that virtual/online schools coded as "Regular School" in CCD were still receiving misleading performance flags. Bellevue Digital Discovery (frl=0.13, composite=0.23, flag=underperforming) and Boistfort Online School (frl=0.01, composite=0.18, flag=underperforming) were both correctly identified as below their FRL-predicted proficiency, but the comparison is invalid because virtual schools draw from statewide self-selected enrollment pools that break the geographic peer comparison model.
+
+**Scope of the problem:** A name-based search for "Online", "Virtual", "Digital", "Distance", "Remote", and "Home Education" found 58 schools. Of these, 35 are already "Alternative School" in CCD (caught by the type filter). The remaining 23 are coded "Regular School" — among those, 6 had active performance flags (5 underperforming, 1 as_expected) that are potentially misleading.
+
+**Decision:** Virtual and online schools are a known category requiring manual exclusion via `school_exclusions.yaml`. The CCD school_type field does not reliably distinguish virtual from brick-and-mortar schools. The builder reviews the full list and adds confirmed virtual schools to the exclusion list on a case-by-case basis.
+
+**Impact:** Each excluded school receives `performance_flag = null` with `flag_absent_reason = "school_type_not_comparable"`. The exclusion list is expected to grow as the builder reviews the 23 "Regular School" virtual programs.
