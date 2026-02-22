@@ -119,7 +119,17 @@ excluded_schools:
     name: WEST VALLEY VIRTUAL ACADEMY K-6
     reason: Virtual/online school.
 
-  # --- Institutional facilities coded as "Regular School" in CCD ---
+  # --- Jails and detention centers ---
+  # Educational programs inside correctional facilities. Enrollment is
+  # involuntary and transient. Identified during null-FRL review.
+
+  - ncessch: "530393003352"
+    name: Benton County Jail
+    reason: Jail education program.
+
+  - ncessch: "530000702914"
+    name: Clallam Co Juvenile Detention
+    reason: Juvenile detention facility.
 
   - ncessch: "530375001773"
     name: Echo Glen School
@@ -129,7 +139,138 @@ excluded_schools:
       transient. Identified during FRL data review (97.1% FRL reflects
       institutional population, not community poverty).
 
-  # --- Homeschool cooperatives ---
+  - ncessch: "530180003350"
+    name: Island County Corrections Facility Ed Program
+    reason: Jail education program.
+
+  - ncessch: "530180003266"
+    name: Island Juvenile Detention Education Program
+    reason: Juvenile detention facility.
+
+  - ncessch: "530000702927"
+    name: Kitsap Co Detention Ctr
+    reason: Jail education program.
+
+  - ncessch: "530117003464"
+    name: Lewis County Jail
+    reason: Jail education program.
+
+  - ncessch: "530790002865"
+    name: Mason County Detention Center
+    reason: Jail education program.
+
+  - ncessch: "530615002915"
+    name: Okanogan Co Juvenile Detention
+    reason: Juvenile detention facility.
+
+  - ncessch: "530000802921"
+    name: Skagit County Detention Center
+    reason: Jail education program.
+
+  - ncessch: "530267003435"
+    name: Sno Co Jail
+    reason: Jail education program.
+
+  - ncessch: "530000802095"
+    name: Snohomish Detention Center
+    reason: Jail education program.
+
+  - ncessch: "530825003425"
+    name: Spokane County Jail
+    reason: Jail education program.
+
+  - ncessch: "530945003826"
+    name: Walla Walla County Juvenile Detention
+    reason: Juvenile detention facility.
+
+  - ncessch: "530000802923"
+    name: Whatcom Co Detention Center
+    reason: Jail education program.
+
+  - ncessch: "531011003399"
+    name: Yakima Adult Jail
+    reason: Jail education program.
+
+  # --- Group homes and residential treatment facilities ---
+  # Serve involuntary or transient populations placed by courts or DSHS.
+
+  - ncessch: "530231002913"
+    name: Canyon View Group Home
+    reason: Group home education program.
+
+  - ncessch: "530792002912"
+    name: Fircrest Residential Habilitation
+    reason: DSHS residential habilitation facility.
+
+  - ncessch: "530141003402"
+    name: Oakridge Group Home
+    reason: Group home education program.
+
+  - ncessch: "530405002916"
+    name: Parke Creek Treatment Ctr
+    reason: Residential treatment center.
+
+  - ncessch: "531011003420"
+    name: Ridgeview Group Home
+    reason: Group home education program.
+
+  - ncessch: "530732002925"
+    name: Twin Rivers Group Home
+    reason: Group home education program.
+
+  # --- Preschool and early childhood programs ---
+  # Not K-12 schools. No tested grades, no meaningful FRL-vs-proficiency
+  # comparison possible.
+
+  - ncessch: "530084003030"
+    name: Cape Flattery Preschool
+    reason: Preschool program.
+
+  - ncessch: "530945003682"
+    name: ECEAP
+    reason: State-funded preschool program (ECEAP).
+
+  - ncessch: "530282003320"
+    name: Federal Way Public Schools Headstart
+    reason: Head Start preschool program.
+
+  - ncessch: "530354002972"
+    name: Head Start
+    reason: Head Start preschool program.
+
+  - ncessch: "530870003578"
+    name: Hoyt Early Learning Center
+    reason: Preschool / early learning center.
+
+  - ncessch: "530474003908"
+    name: Manson Early Learning Center
+    reason: Preschool / early learning center.
+
+  - ncessch: "530600003677"
+    name: Oakville Preschool
+    reason: Preschool program.
+
+  - ncessch: "530423000664"
+    name: Ready Start Preschool
+    reason: Preschool program.
+
+  - ncessch: "530825003213"
+    name: Spokane Regional Health District
+    reason: Health-department-operated preschool program.
+
+  - ncessch: "530825003766"
+    name: West Central Community Center
+    reason: Community-center-operated preschool program.
+
+  # --- Homeschool partnerships ---
+
+  - ncessch: "530591003720"
+    name: Northshore Family Partnership
+    reason: Homeschool partnership program.
+
+  - ncessch: "530978003544"
+    name: White River Homeschool
+    reason: Homeschool program.
 
   - ncessch: "530033002802"
     name: Mosaic Home Education Partnership
@@ -137,3 +278,92 @@ excluded_schools:
       Homeschool cooperative. CCD codes it as "Alternative School" (already
       excluded by school_type filter), but listed here to document the
       edge case.
+
+  # --- Community-based and youth services programs ---
+  # Operated by nonprofits or community organizations, not traditional schools.
+
+  - ncessch: "530354003384"
+    name: Southwest Youth and Family Services
+    reason: Youth services nonprofit program.
+
+  - ncessch: "530825002678"
+    name: The Healing Lodge
+    reason: Native American residential treatment and recovery facility.
+
+  - ncessch: "530618003386"
+    name: Touchstone
+    reason: Youth services program.
+
+  - ncessch: "530591002922"
+    name: Woodinville Community Center
+    reason: Community center education program.
+
+  # --- Alternative and reengagement programs coded as "Regular School" ---
+  # CCD miscodes these; they serve dropout recovery or non-traditional populations.
+
+  - ncessch: "530825000074"
+    name: Alternative Tamarack School
+    reason: Alternative school miscoded as Regular School in CCD.
+
+  - ncessch: "530001603208"
+    name: Garrett Heyns High School
+    reason: College-based education program (Centralia College).
+
+  - ncessch: "530066001751"
+    name: Morgan Center School
+    reason: Alternative program.
+
+  - ncessch: "530609003829"
+    name: Ocosta ALE
+    reason: Alternative learning experience program.
+
+  - ncessch: "530870003313"
+    name: Tacoma Pierce County Education Center
+    reason: Reengagement / alternative education center.
+
+  - ncessch: "530927003383"
+    name: Vancouver Contracted Programs
+    reason: Contracted alternative education services.
+
+  # --- Special education and specialized programs coded as "Regular School" ---
+
+  - ncessch: "530024003065"
+    name: Arlington Special Educ School
+    reason: Special education school miscoded as Regular School in CCD.
+
+  - ncessch: "530192003630"
+    name: Kalispel Language Immersion School
+    reason: >-
+      Tribal language immersion program (Kalispel Tribe). Culturally
+      significant but not a traditional K-12 school. Zero enrollment
+      in 2023-24 CCD.
+
+  - ncessch: "530285003775"
+    name: North Bell Learning Center
+    reason: Special services / learning center, not a traditional school.
+
+  # --- Zero-enrollment schools (likely closed or dormant) ---
+
+  - ncessch: "530591002221"
+    name: Bear Creek Elementary
+    reason: Zero enrollment in 2023-24. Likely closed or consolidated.
+
+  - ncessch: "530456003375"
+    name: Choice
+    reason: Zero enrollment in 2023-24. Likely closed or dormant.
+
+  - ncessch: "530354000551"
+    name: Southern Heights Elementary
+    reason: Zero enrollment in 2023-24. Likely closed or consolidated.
+
+  - ncessch: "530344001771"
+    name: Coulee City Middle School
+    reason: >-
+      Zero enrollment in 2023-24. No staffing, no academics, no finance
+      data. Likely closed.
+
+  - ncessch: "530837001426"
+    name: Star Elem School
+    reason: >-
+      Zero enrollment in 2023-24 (had 11 students per CRDC 2021-22).
+      Likely closed or dormant.
