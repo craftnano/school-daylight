@@ -38,3 +38,9 @@ Chronological record of decisions, findings, and changes with reasoning.
 - Nespelem High School (19 students, tribal community — FRL likely suppressed, not absent)
 
 **Impact:** `school_exclusions.yaml` now has 76 entries (25 virtual + 51 institutional/other). All 49 new schools already had null performance flags due to missing data — the change reclassifies their reason codes from `data_not_available` to the more accurate `school_type_not_comparable`. No regression results change.
+
+---
+
+## 2026-02-22 — Summary
+
+Null-FRL investigation revealed 60 Regular School entries that are non-traditional. 43 added to exclusions. 6 tiny rural schools retained. Triggered by CEP/COVID concern during Phase 4 advisory planning. See `phases/phase-3/decision_log.md` entry #4 for details.
