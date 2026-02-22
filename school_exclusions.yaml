@@ -1,0 +1,24 @@
+# school_exclusions.yaml — Manual overrides for performance regression exclusion
+#
+# Schools on this list are excluded from the FRL-vs-proficiency regression
+# and receive performance_flag = null with flag_absent_reason =
+# "school_type_not_comparable". This is for edge cases where CCD codes a
+# non-traditional school as "Regular School" but it still shouldn't be
+# compared against traditional schools.
+#
+# CCD school_type already catches most cases ("Alternative School",
+# "Special Education School", "Career and Technical School"). This list
+# is for the ones CCD misses.
+#
+# To add a school: put its 12-character NCES ID and a plain-English reason.
+# The reason is for human documentation only — the pipeline uses the same
+# flag_absent_reason for all excluded schools.
+
+excluded_schools:
+  - ncessch: "530033002802"
+    name: Mosaic Home Education Partnership
+    reason: >-
+      Homeschool cooperative. CCD codes it as "Alternative School" (already
+      excluded by school_type filter), but listed here as the first manual
+      entry to establish the pattern for future edge cases where CCD codes
+      a non-traditional school as "Regular School."

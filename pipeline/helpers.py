@@ -335,6 +335,7 @@ def get_nested(doc, dotted_path):
 # ============================================================================
 
 FLAG_THRESHOLDS_PATH = os.path.join(config.PROJECT_ROOT, "flag_thresholds.yaml")
+SCHOOL_EXCLUSIONS_PATH = os.path.join(config.PROJECT_ROOT, "school_exclusions.yaml")
 
 
 def load_flag_thresholds():
@@ -351,3 +352,20 @@ def load_flag_thresholds():
         )
     with open(FLAG_THRESHOLDS_PATH, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def load_school_exclusions():
+    """Load the school_exclusions.yaml manual override list.
+
+    Returns a set of NCESSCH IDs that should be excluded from
+    the performance regression. Returns an empty set if the file
+    doesn't exist (the file is optional — CCD school_type filtering
+    catches most cases).
+    """
+    if not os.path.exists(SCHOOL_EXCLUSIONS_PATH):
+        return set()
+    with open(SCHOOL_EXCLUSIONS_PATH, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    if not data or "excluded_schools" not in data:
+        return set()
+    return {entry["ncessch"] for entry in data["excluded_schools"]}

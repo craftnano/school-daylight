@@ -22,3 +22,21 @@ The statewide regression is distorted because elementary schools dominate the sa
 **Decision:** Use per-level regression (grouped by level_group: Elementary, Middle, High, Other). For groups with fewer than 30 schools, fall back to the statewide all-levels regression.
 
 **Impact:** Fairhaven correctly receives "outperforming" (green) flag. The gate check passes. Schools are compared against peers at the same educational level, which is more educationally defensible.
+
+---
+
+## 2. Exclude non-traditional school types from performance regression
+
+**Date:** 2026-02-21
+**Context:** During builder review, Mosaic Home Education Partnership (NCESSCH 530033002802, frl=0.14, composite=0.273) was flagged as "underperforming." The regression math is correct — a low-FRL school with low proficiency genuinely is below the predicted curve. But Mosaic is a homeschool cooperative, not a traditional school underperforming. The same issue applies to juvenile detention facilities, virtual schools, and alternative programs. These schools serve fundamentally different populations or operate under different instructional models, so comparing them on a FRL-vs-proficiency curve is misleading.
+
+**Decision:** Exclude three CCD school types from the performance regression:
+- "Alternative School" (341 schools)
+- "Special Education School" (82 schools)
+- "Career and Technical School" (20 schools)
+
+Schools excluded by type receive `performance_flag = null` with `performance_flag_absent_reason = "school_type_not_comparable"`. They still get all other derived fields (ratios, percentiles, climate flags) — only the FRL-vs-proficiency regression comparison is suppressed.
+
+Additionally, a `school_exclusions.yaml` file at the project root provides a manual override list for edge cases where CCD codes a non-traditional school as "Regular School." The pipeline reads this list and applies the same exclusion. Mosaic is the first entry (though it's already caught by the CCD type filter as an "Alternative School").
+
+**Impact:** Regression pool drops from 1,249 to ~1,060 schools. Only "Regular School" types participate in the regression. The remaining flag distribution stays close to the 15/70/15 target because non-traditional schools were mostly in the tails (disproportionately "underperforming" due to their different mission, not genuine underperformance).

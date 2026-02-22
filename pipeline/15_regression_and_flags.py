@@ -7,13 +7,19 @@ PURPOSE: Part A — Run FRL-vs-proficiency regression per school level, compute
          Part B — Apply climate/equity flag thresholds with structured metadata.
          Part C — Compute flag_absent_reason for every school missing a flag.
 
-INPUTS:  data/schools_pipeline.json, flag_thresholds.yaml
+INPUTS:  data/schools_pipeline.json, flag_thresholds.yaml, school_exclusions.yaml
 OUTPUTS: Adds derived.performance_flag, derived.regression_*, derived.flags
 
 REGRESSION APPROACH: Per-level (Elementary, Middle, High, Other) instead of
   single statewide. This is a documented deviation from the build sequence
   (see phases/phase-3/decision_log.md #1). Empirically validated: statewide
   gives Fairhaven z=0.89 (yellow), per-level gives z=1.33 (green).
+
+SCHOOL TYPE EXCLUSIONS: Non-traditional school types (Alternative, Special Ed,
+  Career/Technical) are excluded from the regression — they serve fundamentally
+  different populations and comparing them on FRL-vs-proficiency is misleading.
+  Additional manual exclusions come from school_exclusions.yaml.
+  See decision_log.md #2.
 """
 
 import os
@@ -26,7 +32,8 @@ from sklearn.linear_model import LinearRegression
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import (
     setup_logging, load_schools, save_schools,
-    load_flag_thresholds, get_nested, FAIRHAVEN_NCESSCH
+    load_flag_thresholds, load_school_exclusions,
+    get_nested, FAIRHAVEN_NCESSCH
 )
 
 
@@ -81,35 +88,59 @@ def grade_span_includes_tested(doc, tested_grades_str):
 # PART A: PERFORMANCE REGRESSION
 # ============================================================================
 
-def run_regression(schools, thresholds, logger):
+def run_regression(schools, thresholds, excluded_ncessch, logger):
     """Run FRL-vs-proficiency regression per school level group.
 
     Assigns performance_flag, regression_predicted, regression_residual,
     regression_zscore, regression_group, and regression_r_squared to each
-    school that has the required data (FRL + ELA + Math proficiency).
+    school that has the required data (FRL + ELA + Math proficiency)
+    AND is a traditional school type (not alternative, special ed, etc.).
     """
     threshold_sd = thresholds["regression"]["threshold_sd"]
     min_group_size = thresholds["regression"]["min_group_size"]
+    excluded_types = set(thresholds["regression"].get("excluded_school_types", []))
 
     logger.info(f"Regression threshold: ±{threshold_sd} SD. Min group size: {min_group_size}.")
+    logger.info(f"Excluded school types: {sorted(excluded_types)}")
+    logger.info(f"Manual exclusion list: {len(excluded_ncessch)} schools.")
 
-    # Collect schools with non-null FRL + proficiency composite
+    # Collect schools with non-null FRL + proficiency composite,
+    # excluding non-traditional school types and manual exclusions.
     # (composite was computed in step 12)
     regression_ready = []
+    excluded_by_type = 0
+    excluded_by_manual = 0
+
     for ncessch, doc in schools.items():
         frl = doc.get("demographics", {}).get("frl_pct")
         composite = doc.get("derived", {}).get("proficiency_composite")
         level_group = doc.get("derived", {}).get("level_group")
 
-        if frl is not None and composite is not None and level_group is not None:
-            regression_ready.append({
-                "ncessch": ncessch,
-                "frl": frl,
-                "composite": composite,
-                "level_group": level_group,
-            })
+        if frl is None or composite is None or level_group is None:
+            continue
 
-    logger.info(f"{len(regression_ready)} schools are regression-ready (have FRL + composite + level).")
+        # Check CCD school_type exclusion
+        school_type = doc.get("school_type", "")
+        if school_type in excluded_types:
+            excluded_by_type += 1
+            continue
+
+        # Check manual exclusion list
+        if ncessch in excluded_ncessch:
+            excluded_by_manual += 1
+            continue
+
+        regression_ready.append({
+            "ncessch": ncessch,
+            "frl": frl,
+            "composite": composite,
+            "level_group": level_group,
+        })
+
+    logger.info(
+        f"{len(regression_ready)} schools are regression-ready. "
+        f"Excluded: {excluded_by_type} by school type, {excluded_by_manual} by manual list."
+    )
 
     # Group by level
     by_level = defaultdict(list)
@@ -157,7 +188,22 @@ def run_regression(schools, thresholds, logger):
         else:
             logger.info(f"  {level_group}: n={n} (< {min_group_size}), using statewide fallback.")
 
-    # Assign performance flags
+    # Clear all regression fields first — ensures idempotency when re-running.
+    # Without this, stale flags from a previous run would persist for schools
+    # that are now excluded (e.g., after adding school type exclusions).
+    for ncessch, doc in schools.items():
+        if "derived" not in doc:
+            doc["derived"] = {}
+        doc["derived"]["performance_flag"] = None
+        doc["derived"]["regression_predicted"] = None
+        doc["derived"]["regression_residual"] = None
+        doc["derived"]["regression_zscore"] = None
+        doc["derived"]["regression_group"] = None
+        doc["derived"]["regression_r_squared"] = None
+        # Also clear stale absent reason so Part C can recompute it
+        doc["derived"].pop("performance_flag_absent_reason", None)
+
+    # Assign performance flags to regression-ready schools
     flag_counts = defaultdict(int)
 
     for entry in regression_ready:
@@ -200,18 +246,6 @@ def run_regression(schools, thresholds, logger):
         doc["derived"]["regression_zscore"] = round(zscore, 2)
         doc["derived"]["regression_group"] = group_used
         doc["derived"]["regression_r_squared"] = round(r2, 3)
-
-    # Schools without regression data get null
-    for ncessch, doc in schools.items():
-        if "performance_flag" not in doc.get("derived", {}):
-            if "derived" not in doc:
-                doc["derived"] = {}
-            doc["derived"]["performance_flag"] = None
-            doc["derived"]["regression_predicted"] = None
-            doc["derived"]["regression_residual"] = None
-            doc["derived"]["regression_zscore"] = None
-            doc["derived"]["regression_group"] = None
-            doc["derived"]["regression_r_squared"] = None
 
     total_flagged = sum(flag_counts.values())
     for flag_name in ["outperforming", "as_expected", "underperforming"]:
@@ -339,15 +373,17 @@ def apply_no_counselor_flag(schools, flag_config, logger):
 # PART C: FLAG ABSENT REASONS
 # ============================================================================
 
-def assign_flag_absent_reasons(schools, thresholds, logger):
+def assign_flag_absent_reasons(schools, thresholds, excluded_ncessch, logger):
     """For every school missing a flag, assign a high-confidence reason.
 
-    Three categories only — no speculation:
+    Four categories — no speculation:
+    - school_type_not_comparable: non-traditional school type or manual exclusion
     - grade_span_not_tested: school doesn't serve tested grades (3-8, 10)
     - suppressed_n_lt_10: the underlying metric was suppressed for privacy
     - data_not_available: everything else
     """
     tested_grades = thresholds["flag_absent_reasons"]["grade_span_not_tested"]["tested_grades"]
+    excluded_types = set(thresholds["regression"].get("excluded_school_types", []))
 
     # Which flags need absent reasons? All threshold-based flags + performance
     flag_to_field = {}
@@ -362,9 +398,16 @@ def assign_flag_absent_reasons(schools, thresholds, logger):
         derived = doc.get("derived", {})
         flags = derived.get("flags", {})
 
+        # Check if this school is a non-traditional type (used for performance flag)
+        school_type = doc.get("school_type", "")
+        is_excluded = school_type in excluded_types or ncessch in excluded_ncessch
+
         # --- Performance flag absent reason ---
         if derived.get("performance_flag") is None:
-            reason = determine_performance_absent_reason(doc, tested_grades)
+            if is_excluded:
+                reason = "school_type_not_comparable"
+            else:
+                reason = determine_performance_absent_reason(doc, tested_grades)
             derived["performance_flag_absent_reason"] = reason
             reason_counts["performance"][reason] += 1
 
@@ -456,20 +499,21 @@ def main():
 
     schools = load_schools()
     thresholds = load_flag_thresholds()
+    excluded_ncessch = load_school_exclusions()
 
     logger.info(f"Loaded {len(schools)} schools.")
 
-    # Part A: Performance regression
+    # Part A: Performance regression (excludes non-traditional school types)
     logger.info("--- Part A: Performance Regression ---")
-    run_regression(schools, thresholds, logger)
+    run_regression(schools, thresholds, excluded_ncessch, logger)
 
     # Part B: Climate & equity flags
     logger.info("--- Part B: Climate & Equity Flags ---")
     apply_flags(schools, thresholds, logger)
 
-    # Part C: Flag absent reasons
+    # Part C: Flag absent reasons (uses school type for performance flag reason)
     logger.info("--- Part C: Flag Absent Reasons ---")
-    assign_flag_absent_reasons(schools, thresholds, logger)
+    assign_flag_absent_reasons(schools, thresholds, excluded_ncessch, logger)
 
     # Fairhaven verification
     if FAIRHAVEN_NCESSCH in schools:

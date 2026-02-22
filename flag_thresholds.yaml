@@ -63,6 +63,16 @@ regression:
   # X variable: FRL percentage (demographics.frl_pct)
   # Y variable: proficiency composite ((ELA + Math) / 2)
 
+  # CCD school types to EXCLUDE from the performance regression.
+  # These schools serve fundamentally different populations or operate
+  # under different models — comparing them against regular schools
+  # on a FRL-vs-proficiency curve produces misleading results.
+  # Examples: homeschool cooperatives, juvenile detention, virtual programs.
+  excluded_school_types:
+    - "Alternative School"
+    - "Special Education School"
+    - "Career and Technical School"
+
 # ============================================================================
 # PERCENTILE METRICS
 # ============================================================================
@@ -285,6 +295,14 @@ flag_absent_reasons:
     description: >-
       The underlying metric was suppressed because the student count
       was below 10, per state or federal privacy rules.
+
+  school_type_not_comparable:
+    description: >-
+      School is an alternative, special education, career/technical,
+      or other non-traditional program. Comparing these schools against
+      regular schools on a FRL-vs-proficiency curve produces misleading
+      results because they serve fundamentally different populations
+      or operate under different instructional models.
 
   data_not_available:
     description: >-

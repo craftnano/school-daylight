@@ -1,6 +1,6 @@
 # Phase 3 — Verification Receipt
 
-**Generated:** 2026-02-22T05:04:03.103470+00:00
+**Generated:** 2026-02-22T05:16:43.658344+00:00
 **Dataset version:** 2026-02-v1
 **Document count:** 2532
 
@@ -12,7 +12,7 @@
 |-------|--------|---------|
 | Fairhaven exists in MongoDB | PASS | _id=530042000104 |
 | Fairhaven derived.performance_flag | PASS | outperforming |
-| Fairhaven derived.regression_zscore | PASS | 1.33 (expected 1.33) |
+| Fairhaven derived.regression_zscore | PASS | 1.37 (expected 1.33) |
 | Fairhaven derived.regression_group | PASS | Middle |
 | Fairhaven derived.student_teacher_ratio | PASS | 17.5 (expected 17.5) |
 | Fairhaven derived.counselor_student_ratio | PASS | 294.0 (expected 294.0) |
@@ -35,16 +35,16 @@
 | High disparity (Enumclaw Sr High School) | PASS | disparity=6.86, flag=red |
 | Single-school district (Washington State School for the Deaf) | PASS | district percentile is null (correct) |
 | Missing CRDC (Clallam Co Juvenile Detention) | PASS | disparity color=null, reason=data_not_available |
-| Low-FRL underperforming (Mosaic Home Education Partnership) | PASS | frl=0.14, composite=0.273, flag=underperforming (key insight) |
+| Low-FRL underperforming (Bellevue Digital Discovery) | PASS | frl=0.13, composite=0.231, flag=underperforming (key insight) |
 
 ---
 
 ## Regression Summary
 
-- **Schools with performance flag:** 1249
-- **Outperforming (green):** 168
-- **As expected (yellow):** 924
-- **Underperforming (red):** 157
+- **Schools with performance flag:** 1153
+- **Outperforming (green):** 151
+- **As expected (yellow):** 839
+- **Underperforming (red):** 163
 - **Schools with peer cohort:** 2323
 - **Schools with percentiles:** 2532
 

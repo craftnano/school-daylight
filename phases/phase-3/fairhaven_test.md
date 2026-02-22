@@ -1,6 +1,6 @@
 # Phase 3 — Fairhaven Field-by-Field Test (Live MongoDB)
 
-**Generated:** 2026-02-22T05:04:03.146711+00:00
+**Generated:** 2026-02-22T05:16:43.701635+00:00
 **Source:** MongoDB Atlas, collection 'schools', _id='530042000104'
 
 ## Identity
@@ -37,11 +37,11 @@
 ## Performance Regression
 
 - **performance_flag:** outperforming
-- **regression_zscore:** 1.33
-- **regression_predicted:** 0.4693
-- **regression_residual:** 0.1297
+- **regression_zscore:** 1.37
+- **regression_predicted:** 0.4664
+- **regression_residual:** 0.1326
 - **regression_group:** Middle
-- **regression_r_squared:** 0.686
+- **regression_r_squared:** 0.663
 
 ## Percentiles
 
