@@ -12,6 +12,7 @@ import csv
 import json
 import hashlib
 import logging
+import yaml
 from datetime import datetime, timezone
 
 # Add project root to path so we can import config
@@ -305,3 +306,48 @@ def build_ospi_lookup(schools):
         if dist and sch:
             lookup[(str(dist), str(sch))] = ncessch
     return lookup
+
+
+# ============================================================================
+# NESTED FIELD ACCESS — used by percentile and flag scripts to read metrics
+# by config-defined dotted paths like "academics.assessment.ela_proficiency_pct"
+# ============================================================================
+
+def get_nested(doc, dotted_path):
+    """Read a value from a nested dict using a dotted path string.
+
+    get_nested(doc, "academics.assessment.ela_proficiency_pct")
+    is equivalent to doc["academics"]["assessment"]["ela_proficiency_pct"]
+    but returns None if any key is missing instead of raising KeyError.
+    """
+    current = doc
+    for key in dotted_path.split("."):
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+        if current is None:
+            return None
+    return current
+
+
+# ============================================================================
+# FLAG THRESHOLDS CONFIG — loads flag_thresholds.yaml from the project root
+# ============================================================================
+
+FLAG_THRESHOLDS_PATH = os.path.join(config.PROJECT_ROOT, "flag_thresholds.yaml")
+
+
+def load_flag_thresholds():
+    """Load the flag_thresholds.yaml config file.
+
+    Returns the parsed YAML as a dict. Raises FileNotFoundError with
+    a helpful message if the file is missing.
+    """
+    if not os.path.exists(FLAG_THRESHOLDS_PATH):
+        raise FileNotFoundError(
+            f"flag_thresholds.yaml not found at {FLAG_THRESHOLDS_PATH}. "
+            "This file contains all threshold definitions for Phase 3. "
+            "It should be in the project root alongside cleaning_rules.yaml."
+        )
+    with open(FLAG_THRESHOLDS_PATH, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
