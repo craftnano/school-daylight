@@ -34,14 +34,18 @@
 ## Doc Change Queue (apply before launching Phase 2)
 
 ### CLAUDE.md
-1. Add to metadata section of schema: `dataset_version` and `load_timestamp` fields per document.
-2. Add requirement: Phase 2 verification receipt must include source file hashes (SHA256) for all input files, making idempotent reruns provable.
+1. ~~Add to metadata section of schema: `dataset_version` and `load_timestamp` fields per document.~~ **DONE** — Committed as `fa1101e`.
+2. ~~Add requirement: Phase 2 verification receipt must include source file hashes (SHA256) for all input files, making idempotent reruns provable.~~ **DONE** — Committed as `fa1101e`.
+3. ~~Add grep-able module header spec (PURPOSE, INPUTS, OUTPUTS, JOIN KEYS, SUPPRESSION HANDLING, RECEIPT, FAILURE MODES) and inline trace tags (LINEAGE, SOURCE, RULE, TEST) to the Comments section.~~ **DONE** — Committed as `4758aa1`.
+4. ~~Create `docs/how_to_find_anything.md` — builder's cheat sheet for navigating the repo with rg searches.~~ **DONE** — Committed as `4758aa1`.
 
 ### foundation.md
 - No changes required. Phase 1 findings align with spec.
 
 ### build-sequence.md
 - No changes required. Phase 1 followed the plan as written.
+
+**Doc change queue status: ALL ITEMS APPLIED.**
 
 ---
 
