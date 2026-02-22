@@ -1,6 +1,6 @@
 # Phase 3 — Verification Receipt
 
-**Generated:** 2026-02-22T05:26:35.033477+00:00
+**Generated:** 2026-02-22T05:29:40.021346+00:00
 **Dataset version:** 2026-02-v1
 **Document count:** 2532
 
@@ -41,10 +41,10 @@
 
 ## Regression Summary
 
-- **Schools with performance flag:** 1151
+- **Schools with performance flag:** 1145
 - **Outperforming (green):** 152
-- **As expected (yellow):** 838
-- **Underperforming (red):** 161
+- **As expected (yellow):** 831
+- **Underperforming (red):** 162
 - **Schools with peer cohort:** 2323
 - **Schools with percentiles:** 2532
 

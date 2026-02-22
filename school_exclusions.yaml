@@ -15,19 +15,111 @@
 # flag_absent_reason for all excluded schools.
 
 excluded_schools:
+  # --- Virtual / online schools coded as "Regular School" in CCD ---
+  # These draw from statewide self-selected enrollment pools that break
+  # the geographic peer comparison model. See decision_log.md #3.
+
   - ncessch: "530039003883"
     name: Bellevue Digital Discovery
-    reason: >-
-      Virtual/online school (K-12). CCD codes it as "Regular School" but
-      it operates as a fully online program. Comparing a virtual school
-      against brick-and-mortar schools on FRL-vs-proficiency is misleading.
+    reason: Virtual/online school (K-12).
 
   - ncessch: "530063003917"
     name: BOISTFORT ONLINE SCHOOL
-    reason: >-
-      Virtual/online school. CCD codes it as "Regular School" but
-      it operates as a fully online program with statewide self-selected
-      enrollment that breaks the peer comparison model.
+    reason: Virtual/online school.
+
+  - ncessch: "530111003788"
+    name: Central Valley Virtual Learning
+    reason: Virtual/online school.
+
+  - ncessch: "530522003800"
+    name: Digital Learning Center
+    reason: Virtual/online school.
+
+  - ncessch: "530783003729"
+    name: Dungeness Virtual School
+    reason: Virtual/online school.
+
+  - ncessch: "530249003884"
+    name: Eagle Virtual Sky Academy
+    reason: Virtual/online school.
+
+  - ncessch: "530285003703"
+    name: Ferndale Virtual Academy
+    reason: Virtual/online school.
+
+  - ncessch: "530354003742"
+    name: Highline Public Schools Virtual Academy
+    reason: Virtual/online school.
+
+  - ncessch: "530000303314"
+    name: Kelso Virtual Academy
+    reason: Virtual/online school.
+
+  - ncessch: "530095003726"
+    name: Kodiak Virtual Academy
+    reason: Virtual/online school.
+
+  - ncessch: "530732003810"
+    name: Pacific Crest Online Academy
+    reason: Virtual/online school.
+
+  - ncessch: "530723003743"
+    name: Renton Remote School
+    reason: Virtual/remote school.
+
+  - ncessch: "530870003889"
+    name: Tacoma Online Elementary School
+    reason: Virtual/online school.
+
+  - ncessch: "530870003891"
+    name: Tacoma Online High School
+    reason: Virtual/online school.
+
+  - ncessch: "530870003890"
+    name: Tacoma Online Middle School
+    reason: Virtual/online school.
+
+  - ncessch: "530966003727"
+    name: Valley Online Academy
+    reason: Virtual/online school.
+
+  - ncessch: "530622003282"
+    name: Washington Virtual Academy Omak Elementary
+    reason: Virtual/online school.
+
+  - ncessch: "530622003304"
+    name: Washington Virtual Academy Omak High School
+    reason: Virtual/online school.
+
+  - ncessch: "530622003307"
+    name: Washington Virtual Academy Omak Middle School
+    reason: Virtual/online school.
+
+  - ncessch: "530948003893"
+    name: Wapato Online Academy 6-8
+    reason: Virtual/online school.
+
+  - ncessch: "530948003894"
+    name: Wapato Online Academy 9-12
+    reason: Virtual/online school.
+
+  - ncessch: "530948003892"
+    name: Wapato Online Academy K-5
+    reason: Virtual/online school.
+
+  - ncessch: "530972003619"
+    name: WEST VALLEY VIRTUAL ACADEMY 7-8
+    reason: Virtual/online school.
+
+  - ncessch: "530972003614"
+    name: WEST VALLEY VIRTUAL ACADEMY 9-12
+    reason: Virtual/online school.
+
+  - ncessch: "530972003623"
+    name: WEST VALLEY VIRTUAL ACADEMY K-6
+    reason: Virtual/online school.
+
+  # --- Homeschool cooperatives ---
 
   - ncessch: "530033002802"
     name: Mosaic Home Education Partnership
