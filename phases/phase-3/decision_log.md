@@ -69,3 +69,25 @@ These schools were invisible to the Phase 3 exclusion logic because the CCD type
 Six schools with null FRL were deliberately NOT excluded: Point Roberts Primary (5 students, geographic exclave), Decatur Elementary (3 students, San Juan Islands), Holden Village Community School (4 students, remote mining village), Waldron Island School (5 students, San Juan Islands), Coulee City Middle School (0 students — verify if closed), Star Elem School (0 students — verify if closed), Nespelem High School (19 students, Colville Reservation — FRL likely suppressed, not absent). These are real schools serving real children in geographically unique situations. They should receive briefings with narrative framing appropriate to their context (Phase 5 design consideration).
 
 **Impact:** Manual exclusion list grows from 26 to approximately 69. Combined with the 443 CCD type-filtered exclusions, approximately 511 of 2,532 schools (20%) are excluded from the performance regression. All excluded schools retain full data documents and all non-regression derived fields. Regression pool integrity improves — no jails or preschools influencing the FRL-vs-proficiency curve.
+
+---
+
+## 5. Discipline disparity minimum-N threshold raised from 10 to 30
+
+**Date:** 2026-02-22
+
+**Context:** Builder requested analysis of schools with discipline disparity ratios above 10x. Of 1,300 schools with computable disparity ratios, 65 exceeded 10x. Investigation of the triggering subgroup enrollment revealed a clear small-number problem:
+
+- 29 of 65 (45%) have fewer than 20 students in the triggering subgroup
+- 38 of 65 (58%) have fewer than 30 students in the triggering subgroup
+- 27 of 65 (42%) have 30+ students — these represent real signal
+
+Examples of small-N artifacts: North Star Elementary (10 Black students, 32.8x), Chief Kanim Middle School (11 Black students, 36.3x), Salem Woods Elementary (11 Asian students, 29.9x). A single suspension against 10 students produces a 10% rate, which easily generates extreme ratios when divided by a lower white suspension rate.
+
+Examples of real signal at 30+ students: Ballard High School (47 Black students, 51.6x), Washington Middle School (191 Black students, 10.6x), Garfield High School (449 Black students, 10.2x). These ratios reflect genuine disciplinary patterns, not statistical noise.
+
+**Decision:** Raise the minimum subgroup enrollment threshold from 10 to 30 for discipline disparity ratio computation. Schools with subgroups of 10-29 students will have their disparity ratio suppressed with a new reason code: `suppressed_subgroup_lt_30`. Schools with subgroups below 10 continue to be excluded entirely (as before).
+
+**Implementation:** Deferred. Requires a Phase 3 comparison engine rerun before Phase 5 (narrative generation). Does not affect Phase 4 (AI context enrichment), which does not consume disparity ratios directly. The change will be applied to `pipeline/12_compute_ratios.py` and `flag_thresholds.yaml` during the pre-Phase 5 rerun.
+
+**Impact:** Approximately 200-300 schools currently receiving disparity ratios based on subgroups of 10-29 students will have those ratios suppressed. The discipline disparity flag distribution will shift — fewer yellow and red flags, more nulls with the `suppressed_subgroup_lt_30` reason. Schools with 30+ students in the subgroup retain their ratios and flags unchanged.

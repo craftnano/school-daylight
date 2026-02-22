@@ -44,3 +44,9 @@ Chronological record of decisions, findings, and changes with reasoning.
 ## 2026-02-22 — Summary
 
 Null-FRL investigation revealed 60 Regular School entries that are non-traditional. 43 added to exclusions. 6 tiny rural schools retained. Triggered by CEP/COVID concern during Phase 4 advisory planning. See `phases/phase-3/decision_log.md` entry #4 for details.
+
+---
+
+## 2026-02-22 — Discipline disparity small-N analysis
+
+Discipline disparity small-N analysis. 29 of 65 schools with 10x+ ratios have fewer than 20 students in the triggering subgroup. Current minimum-N threshold of 10 is too low — produces statistically meaningless extreme ratios. Decision: raise floor to 30 before Phase 5. Schools with subgroups of 10-29 will get ratio suppressed with reason code `suppressed_subgroup_lt_30`. Requires Phase 3 comparison engine rerun before Phase 5. Does not affect Phase 4.
