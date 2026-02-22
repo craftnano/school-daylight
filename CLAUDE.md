@@ -52,6 +52,29 @@ Every design decision must pass this test: "Can the builder diagnose and fix a p
 
 **Comments:** Comment the WHY, not the WHAT. Wrong: `# load the CSV`. Right: `# OSPI uses state codes, not NCES IDs. We need the crosswalk to join.` Every function gets a one-line docstring explaining its purpose in plain English. Every non-obvious decision gets a comment explaining why this approach was chosen over the obvious alternative. A non-coder reading the code should be able to follow the reasoning even if they can't follow the syntax.
 
+**Module headers:** Every pipeline script and major module starts with a grep-able header block. This is the builder's navigation system — searchable across the entire repo.
+
+```python
+# PURPOSE: Load OSPI discipline data and join to CCD spine
+# INPUTS: WA-raw/ospi/Report_Card_Discipline_2023-24.csv, data/ccd_wa_directory.csv
+# OUTPUTS: Writes discipline fields into MongoDB documents
+# JOIN KEYS: DistrictCode + SchoolCode → ST_SCHID → NCESSCH
+# SUPPRESSION HANDLING: "N<10" → null + suppressed; "*" → null + suppressed; "No Students" → null
+# RECEIPT: phases/phase-2/receipt.md — discipline section
+# FAILURE MODES: Comma-in-IDs (strip before join); grade label "All" not "All Grades"
+```
+
+**Trace tags:** Use these standardized tags inline so any field, rule, or test can be found with a single search across the repo.
+
+```python
+# LINEAGE: discipline.ospi.rate           — marks where a schema field is computed
+# SOURCE: OSPI_Discipline_2023.csv:DisciplineRate  — marks where a raw column is read
+# RULE: SUPPRESSION_OSPI_N_LT_10         — marks where a cleaning/suppression rule is applied
+# TEST: GOLDEN_SCHOOL_FAIRHAVEN          — marks where golden school verification happens
+```
+
+Search examples: `rg "LINEAGE: discipline"` finds every place discipline fields are touched. `rg "RULE: SUPPRESSION"` finds every suppression handler. `rg "TEST: GOLDEN"` finds every golden school check.
+
 **No magic:** No decorators, metaclasses, abstract base classes, or design patterns that require Python expertise to understand. Straightforward procedural code. Functions with clear names. If a junior developer would need to Google it, don't use it.
 
 **Dependency pinning:** `requirements.txt` with exact versions (`pandas==2.2.1`, not `pandas>=2.0`). A `pip install` today must produce the same result six months from now.
@@ -134,3 +157,4 @@ For detailed architecture and methodology, see these docs (read them, don't embe
 - `docs/testing_utility.md` — 5-layer test specification, golden school pattern
 - `docs/data_dictionary.yaml` — Every source column mapped to schema (created in Phase 1)
 - `docs/build_log.md` — Chronological record of every decision with reasoning
+- `docs/how_to_find_anything.md` — Builder's cheat sheet for navigating the repo with grep
