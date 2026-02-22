@@ -53,3 +53,19 @@ Additionally, a `school_exclusions.yaml` file at the project root provides a man
 **Decision:** Virtual and online schools are a known category requiring manual exclusion via `school_exclusions.yaml`. The CCD school_type field does not reliably distinguish virtual from brick-and-mortar schools. The builder reviews the full list and adds confirmed virtual schools to the exclusion list on a case-by-case basis.
 
 **Impact:** Each excluded school receives `performance_flag = null` with `flag_absent_reason = "school_type_not_comparable"`. The exclusion list is expected to grow as the builder reviews the 23 "Regular School" virtual programs.
+
+---
+
+## 4. Batch exclusion of non-traditional schools identified through null-FRL review
+
+**Date:** 2026-02-22
+
+**Context:** During Phase 4 advisory planning, builder investigated the 152 schools with null FRL values to assess whether CEP (Community Eligibility Provision) was distorting the FRL distribution used in the performance regression. The FRL distribution was found to be healthy (no unnatural spike at 100%, source is OSPI 2023-24 post-COVID waiver expiration). However, the investigation revealed that 60 of the 152 null-FRL schools are coded as "Regular School" in CCD but are clearly non-traditional: jails, juvenile detention centers, group homes, residential treatment facilities, preschool/ECEAP/Head Start programs, homeschool partnerships, youth services nonprofits, alternative/reengagement programs, and zero-enrollment schools that are likely closed.
+
+These schools were invisible to the Phase 3 exclusion logic because the CCD type filter only catches Alternative, Special Education, and Career/Technical types, and the Phase 3 virtual school name search targeted online/virtual keywords. Jails, group homes, and preschools coded as "Regular School" passed through both filters.
+
+**Decision:** Add 43 schools to `school_exclusions.yaml` across the following categories: Jails & detention centers (15) including Echo Glen School identified separately through builder's local knowledge during FRL distribution review. Group homes & residential treatment (6). Preschool / ECEAP / Head Start (10). Homeschool partnerships (2). Community-based / youth services (4). Alternative / reengagement miscoded as Regular (6). Special ed / tribal language programs miscoded as Regular (3) — note: Kalispel Language Immersion School is culturally significant, excluded from regression only, not from briefing generation. Zero enrollment / likely closed (3).
+
+Six schools with null FRL were deliberately NOT excluded: Point Roberts Primary (5 students, geographic exclave), Decatur Elementary (3 students, San Juan Islands), Holden Village Community School (4 students, remote mining village), Waldron Island School (5 students, San Juan Islands), Coulee City Middle School (0 students — verify if closed), Star Elem School (0 students — verify if closed), Nespelem High School (19 students, Colville Reservation — FRL likely suppressed, not absent). These are real schools serving real children in geographically unique situations. They should receive briefings with narrative framing appropriate to their context (Phase 5 design consideration).
+
+**Impact:** Manual exclusion list grows from 26 to approximately 69. Combined with the 443 CCD type-filtered exclusions, approximately 511 of 2,532 schools (20%) are excluded from the performance regression. All excluded schools retain full data documents and all non-regression derived fields. Regression pool integrity improves — no jails or preschools influencing the FRL-vs-proficiency curve.
