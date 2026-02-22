@@ -31,6 +31,12 @@ STEPS = [
     ("08_finalize", "Finalize metadata and compute join status"),
     ("09_write_to_atlas", "Write all documents to MongoDB Atlas"),
     ("10_verify", "Run verification checks and generate receipt"),
+    ("11_load_crdc_enrollment", "Load CRDC enrollment by race for disparity ratios"),
+    ("12_compute_ratios", "Compute derived ratios (S-T, counselor, absenteeism, disparity)"),
+    ("13_assign_peer_groups", "Assign peer cohorts (level + enrollment + FRL bands)"),
+    ("14_compute_percentiles", "Compute percentile ranks for 8 metrics"),
+    ("15_regression_and_flags", "Run performance regression and apply climate/equity flags"),
+    ("16_write_and_verify", "Write Phase 3 data to Atlas and verify"),
 ]
 
 
