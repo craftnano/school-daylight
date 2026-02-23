@@ -8,7 +8,15 @@
 
 ## What This Phase Does
 
-For each school, call Haiku with web search to find contextual signals — news, investigations, awards, leadership changes, OCR complaints, programs. A second Haiku call validates each finding. Results are stored as a `context` field on each school's MongoDB document.
+Two-pass enrichment via Haiku with web search:
+
+1. **Pass 1 — District-level enrichment.** For each of ~330 distinct districts, search for district-wide contextual signals: investigations, lawsuits, scandals, leadership changes. Findings are stored as `district_context` on every school document in that district. This catches events that affect schools but don't appear in school-specific searches (e.g., a district superintendent's criminal charges, a district-wide OCR investigation).
+
+2. **Pass 2 — School-level enrichment.** For each of 2,532 schools, search for school-specific signals: awards, programs, individual school news. Findings are stored as `context` on the school document. This is the existing per-school search.
+
+Both passes use the same validation pattern (second Haiku call checks each finding), same sensitivity flagging, same cost controls.
+
+Phase 5 narratives draw from both layers. District findings are framed as district-level context, not attributed to the individual school.
 
 ---
 
@@ -20,19 +28,81 @@ The only modification: tag excluded schools in checkpoint output so we can analy
 
 ---
 
+## Decision: "Washington state" in All Search Queries
+
+All search queries — both district-level and school-level — use "Washington state" instead of "Washington" to avoid contamination from Washington, D.C. results. This applies to both enrichment prompts and any hardcoded query patterns.
+
+---
+
 ## Architecture
 
 ### One Script: `pipeline/17_haiku_enrichment.py`
 
 Why 17? Pipeline numbering continues from Phase 3 (01-16 already exist). It reads from MongoDB and writes back to MongoDB. It does not depend on any local CSV files.
 
-### Two Prompts (Versioned, Stored as Plaintext)
+Two run modes:
+- `--pass district` — Run Pass 1 (district-level enrichment)
+- `--pass school` — Run Pass 2 (school-level enrichment)
+- `--pilot` — Pilot batch (applicable to either pass)
 
-1. **`prompts/context_enrichment_v1.txt`** — Enrichment prompt. Tells Haiku what to search for, what categories to fill, how to structure output, disambiguation rules.
+### Four Prompts (Versioned, Stored as Plaintext)
 
-2. **`prompts/context_validation_v1.txt`** — Validation prompt. Receives the enrichment findings and checks: right school? credible source? claim supported by source? Flags wrong-school contamination and unsupported claims.
+1. **`prompts/district_enrichment_v1.txt`** — District enrichment prompt. Searches for district-wide investigations, lawsuits, scandals, leadership changes.
+2. **`prompts/district_validation_v1.txt`** — District validation prompt. Checks: right district? credible source? claim supported?
+3. **`prompts/context_enrichment_v1.txt`** — School enrichment prompt. Searches for school-specific awards, programs, news.
+4. **`prompts/context_validation_v1.txt`** — School validation prompt. Checks: right school? credible source? claim supported?
 
-### Output Schema (Added to Each School Document)
+### Output Schema — District Context (Pass 1)
+
+Stored as `district_context` on every school document in the district:
+
+```
+district_context: {
+    district_name: str,
+    status: "enriched" | "no_findings" | "failed",
+    prompt_version: "v1",
+    validation_prompt_version: "v1",
+    generated_at: "2026-02-22T...",  # ISO 8601
+    model: "claude-haiku-4-5-20251001",
+    cost: {
+        enrichment_input_tokens: int,
+        enrichment_output_tokens: int,
+        validation_input_tokens: int,
+        validation_output_tokens: int,
+        web_search_requests: int,
+        total_input_tokens: int,
+        total_output_tokens: int,
+        actual_model: str
+    },
+    findings: [
+        {
+            category: "news" | "investigations_ocr" | "awards_recognition" | "leadership" | "programs" | "community_investment" | "other",
+            subcategory: str | null,
+            summary: str,
+            source_url: str,
+            source_name: str,
+            source_content_summary: str,
+            date: str | null,
+            confidence: "high" | "medium" | "low",
+            sensitivity: "high" | "normal",
+            validated: true | false,
+            validation_notes: str | null
+        }
+    ],
+    validation_summary: {
+        findings_submitted: int,
+        findings_confirmed: int,
+        findings_rejected: int,
+        findings_downgraded: int,
+        wrong_school_detected: int
+    },
+    error: str | null
+}
+```
+
+### Output Schema — School Context (Pass 2)
+
+Stored as `context` on each school document (unchanged from original plan):
 
 ```
 context: {
@@ -49,50 +119,69 @@ context: {
         web_search_requests: int,
         total_input_tokens: int,
         total_output_tokens: int,
-        actual_model: str  # Model string from API response header — hallucination safeguard to verify every call went to Haiku
+        actual_model: str
     },
     findings: [
         {
             category: "news" | "investigations_ocr" | "awards_recognition" | "leadership" | "programs" | "community_investment" | "other",
-            subcategory: str | null,  # Required if category is "other"
-            summary: str,             # 1-3 sentence summary of the finding
+            subcategory: str | null,
+            summary: str,
             source_url: str,
-            source_name: str,         # e.g., "Bellingham Herald", "OSPI"
-            source_content_summary: str,  # Brief summary of what the source page says (survives link rot)
-            date: str | null,         # ISO date if known, null if not
+            source_name: str,
+            source_content_summary: str,
+            date: str | null,
             confidence: "high" | "medium" | "low",
-            sensitivity: "high" | "normal",  # "high" = active investigations, lawsuits, criminal charges, abuse
+            sensitivity: "high" | "normal",
             validated: true | false,
-            validation_notes: str | null  # Why validator flagged or confirmed
+            validation_notes: str | null
         }
     ],
     validation_summary: {
         findings_submitted: int,
         findings_confirmed: int,
         findings_rejected: int,
-        findings_downgraded: int,  # Confidence lowered
+        findings_downgraded: int,
         wrong_school_detected: int
     },
-    error: str | null  # If status is "failed", explains why
+    error: str | null
 }
 ```
 
 ---
 
-## Flow Per School
+## Flow — Pass 1 (District)
 
 ```
-1. Build search context: name + district + city + state
-2. Call Haiku with enrichment prompt + web search (max 2 searches)
-3. Parse JSON response
-   ├── Zero findings → status="no_findings", skip validation, move on
-   └── Has findings →
-       4. Call Haiku with validation prompt + web search (max 1 search)
-       5. Parse validation response
-       6. Merge: remove rejected findings, update confidence scores
-7. Write context to MongoDB document
-8. Append to checkpoint file (JSONL)
-9. Log summary for this school
+1. Query MongoDB for distinct district names (~330)
+2. For each district:
+   a. Call Haiku with district enrichment prompt + web search (max 2 searches)
+      Search: "[district name] Washington state investigations lawsuits scandals leadership changes"
+   b. Parse JSON response
+      ├── Zero findings → status="no_findings", skip validation
+      └── Has findings →
+          c. Call Haiku with district validation prompt + web search (max 1 search)
+          d. Parse validation response
+          e. Merge: remove rejected findings, update confidence scores
+   f. Write district_context to EVERY school document in that district
+   g. Append to district checkpoint file
+   h. Log summary
+```
+
+## Flow — Pass 2 (School)
+
+```
+1. For each school (all 2,532):
+   a. Call Haiku with school enrichment prompt + web search (max 2 searches)
+      Search: "[school name] [district name] [city] Washington state"
+   b. Parse JSON response
+      ├── Zero findings → status="no_findings", skip validation
+      └── Has findings →
+          c. Call Haiku with school validation prompt + web search (max 1 search)
+          d. Parse validation response
+          e. Merge: remove rejected findings, update confidence scores
+   f. Write context to school document
+   g. Append to school checkpoint file
+   h. Log summary
 ```
 
 ---
@@ -101,10 +190,17 @@ context: {
 
 **Constraint:** Tier 1, 5 requests per minute for Haiku.
 
-**Approach:** Token-bucket rate limiter with 5 tokens, refilling 1 every 12 seconds. Before each API call, the script waits until a token is available. This means:
-- Worst case (every school has findings, needs validation): 2 calls/school → 2.5 schools/min → ~17 hours
-- Best case (many schools return nothing): approaches 5 schools/min → ~8.5 hours
-- Realistic estimate: ~10-13 hours for the full batch
+**Approach:** Token-bucket rate limiter with 5 tokens, refilling 1 every 12 seconds. Before each API call, the script waits until a token is available. Same rate limiter for both passes (they run sequentially, not concurrently).
+
+**Pass 1 time estimate (~330 districts):**
+- Worst case (every district has findings, needs validation): 2 calls/district → 165 districts/hour → ~2 hours
+- Best case (many districts return nothing): approaches 5 districts/min → ~1.1 hours
+- Realistic estimate: ~1.5–2 hours
+
+**Pass 2 time estimate (2,532 schools):**
+- Same as original plan: ~10-13 hours realistic
+
+**Total: ~12-15 hours for both passes.**
 
 **No hammering:** The rate limiter prevents 429 errors rather than relying on retry-after-429. If a 429 does happen (edge case), the retry logic waits the full retry-after period before continuing.
 
@@ -112,27 +208,27 @@ context: {
 
 ## Resume Capability
 
-**Checkpoint file:** `data/enrichment_checkpoint.jsonl` — one JSON line per school.
+Two separate checkpoint files (passes run independently):
 
-Each line: `{"ncessch": "530042000104", "status": "enriched", "findings_count": 3, "timestamp": "2026-02-22T..."}`
+**District checkpoint:** `data/district_enrichment_checkpoint.jsonl`
+Each line: `{"district_name": "Bellingham School District", "status": "enriched", "findings_count": 3, "schools_updated": 12, "timestamp": "..."}`
 
-On startup, the script:
-1. Reads the checkpoint file (if it exists)
-2. Builds a set of already-processed NCES IDs
-3. Skips those schools
-4. Logs: "Resuming: 1,200 of 2,532 schools already processed. Continuing from school 1,201."
+**School checkpoint:** `data/enrichment_checkpoint.jsonl`
+Each line: `{"ncessch": "530042000104", "status": "enriched", "findings_count": 3, "timestamp": "..."}`
 
-The checkpoint file is append-only during a run. Results are written to both MongoDB and checkpoint simultaneously, so either can serve as ground truth.
+On startup, each pass reads its checkpoint, builds a set of already-processed entities, and skips them.
 
 ---
 
 ## Retry Logic
 
-- Max 3 retries per school on API errors (timeout, 500, 529)
+Same for both passes:
+
+- Max 3 retries per entity on API errors (timeout, 500, 529)
 - Exponential backoff: 5s, 15s, 45s
 - 429 errors: wait `retry-after` header value (or 60s if not present), does NOT count against retry limit
-- After 3 failed retries: `status="failed"`, `error="<description>"`, move to next school
-- Failed schools do NOT trigger additional web searches — the retry reuses the same prompt, not a new search
+- After 3 failed retries: `status="failed"`, `error="<description>"`, move to next entity
+- Failed entities do NOT trigger additional web searches — the retry reuses the same prompt, not a new search
 
 ---
 
@@ -142,89 +238,119 @@ The checkpoint file is append-only during a run. Results are written to both Mon
 |---------|-------|
 | Model | `claude-haiku-4-5-20251001` only |
 | Extended thinking | Disabled |
-| Web searches per enrichment call | Max 2 |
-| Web searches per validation call | Max 1 |
-| Max output tokens per call | 2,000 (enrichment), 1,500 (validation) |
-| Retries per school | 3 |
+| Web searches per enrichment call | Max 2 (both passes) |
+| Web searches per validation call | Max 1 (both passes) |
+| Max output tokens per call | 4,096 (both passes) |
+| Retries per entity | 3 |
 | Rate limit | 5 RPM via token bucket |
 
-**Cost estimate per school (from test calls):**
-- Enrichment: ~12K input tokens + ~500 output tokens + 1-2 web searches
-- Validation: ~15K input tokens + ~300 output tokens + 0-1 web searches
-- Haiku pricing: $0.80/MTok input, $4.00/MTok output
-- Web search: $10/1000 searches
-- **Estimated per-school cost: $0.04-0.06**
-- **Full batch estimate: $100-$150 for 2,532 schools**
+**Cost estimate (from pilot data):**
 
-The pilot of 25 schools will give us a real per-school cost before committing to the full batch.
+| Pass | Entities | Avg cost/entity | Projected total |
+|------|----------|----------------|----------------|
+| District (Pass 1) | ~330 | ~$0.034 | ~$11 |
+| School (Pass 2) | 2,532 | ~$0.034 | ~$86 |
+| Web search (both) | ~6,400 searches | $10/1000 | ~$64 |
+| **Total** | | | **~$161** |
+
+Pilot of each pass will give real numbers before committing to full batches.
 
 ---
 
-## Pilot Batch: 25 Schools
+## Pilot Batches
 
-### Selection Criteria
+### Pass 1 Pilot: 10 Districts
 
-Pick a representative mix that tests edge cases:
+Pick a representative mix:
+- 3 large districts (Seattle, Spokane, Bellingham) — high chance of findings
+- 4 mid-size districts (Tacoma, Yakima, Kennewick, Olympia)
+- 3 small/rural districts — expected to return few/no findings
 
-| Category | Count | Why |
-|----------|-------|-----|
-| **Fairhaven** (golden school) | 1 | Must verify known facts |
-| **Large district — Seattle** | 4 | High chance of news, investigations |
-| **Large district — Spokane** | 3 | Second largest district |
-| **Large district — Bellingham** | 2 | Fairhaven's district, other schools |
-| **Mid-size district** | 5 | Moderate news coverage |
-| **Rural, small enrollment** | 5 | Expected to return few/no findings |
-| **Excluded (alternative/special ed)** | 3 | Test enrichment on non-traditional schools |
-| **Charter school** | 2 | Sometimes attract news coverage |
+### Pass 2 Pilot: 25 Schools (Already Completed)
 
-The script will select specific schools from MongoDB by querying for these criteria. Exact NCES IDs will be logged in the pilot report.
+The original school-level pilot ran successfully (16 enriched, 9 no findings, 0 failures). It will be re-run after prompt updates ("Washington state" fix) and after Pass 1 completes, so the builder can evaluate both layers together.
 
 ### Pilot Report Contents
 
-Saved as `phases/phase-4/pilot_report.md`:
-- List of 25 schools with findings count
-- Average cost per school (actual)
-- Total cost of pilot run
-- Projected cost for full batch
-- All "other" category findings (for human review of category fit)
+Saved as `phases/phase-4/pilot_report.md` (updated for both passes):
+- Per-district and per-school results with findings counts
+- Average cost per entity (actual) for each pass
+- Total cost and projected full-batch cost
+- All "other" category findings (for human review)
 - All "sensitivity: high" findings (for human review)
 - All validation rejections (for prompt quality assessment)
-- Fairhaven findings (full list for builder review against known local reality)
-- Schools with zero findings (expected for rural?)
-- Any errors or failed schools
+- Fairhaven: all findings (school + district) for builder review against known local reality
+- Any errors or failed entities
 
-**Full batch does NOT run until builder reviews and approves pilot report.**
+**Full batch does NOT run until builder reviews and approves pilot results for each pass.**
 
 ---
 
 ## Prompt Design (Summary — Full Text in Prompt Files)
 
-### Enrichment Prompt
+### District Enrichment Prompt (NEW)
 
 System instructions tell Haiku to:
-1. Search for `[school name] [district] [city] [state]`
-2. Look across predefined categories (news, investigations, awards, etc.)
-3. Reject any result that doesn't match on at least district AND city
-4. Return structured JSON matching the schema above
+1. Search for `[district name] Washington state investigations lawsuits scandals leadership changes`
+2. Focus on district-wide events: superintendent/board actions, OCR or state investigations, lawsuits, financial scandals, bond measures, district-wide policy changes
+3. Reject any result that refers to a different district or a different state (especially Washington, D.C.)
+4. Return structured JSON matching the district_context schema
 5. Include source content summaries that survive link rot
 6. Flag findings involving active investigations, lawsuits, criminal charges, or abuse as `sensitivity: "high"`
-7. Use "other" category with a subcategory string for anything that doesn't fit standard categories
+7. Do NOT include individual school-level events — those belong in the school-level pass
 
-### Validation Prompt
+### District Validation Prompt (NEW)
 
 System instructions tell Haiku to:
-1. Review each finding from the enrichment pass
+1. Review each finding from the district enrichment pass
+2. Check: Is this the right district? (Name and state match)
+3. Check: Is the source credible?
+4. Check: Does the cited source actually support the claimed finding?
+5. Specifically check for Washington state vs. Washington, D.C. contamination
+6. Optionally perform one web search to verify a claim if needed
+7. Return a validated set: confirmed, rejected (with reason), or downgraded
+
+### School Enrichment Prompt (Updated)
+
+System instructions tell Haiku to:
+1. Search for `[school name] [district name] [city] Washington state`
+2. Look across predefined categories: awards, programs, school-specific news, leadership
+3. Reject any result that doesn't match on at least district AND city
+4. Do NOT duplicate district-level findings — those are handled separately
+5. Return structured JSON matching the context schema
+6. Include source content summaries that survive link rot
+7. Flag findings involving active investigations, lawsuits, criminal charges, or abuse as `sensitivity: "high"`
+8. Use "other" category with a subcategory string for anything that doesn't fit standard categories
+
+### School Validation Prompt (Updated)
+
+System instructions tell Haiku to:
+1. Review each finding from the school enrichment pass
 2. Check: Is this the right school? (Name + district + city match)
-3. Check: Is the source credible? (News outlets, government sites, official school pages > random blogs, forums)
+3. Check: Is the source credible?
 4. Check: Does the cited source actually support the claimed finding?
 5. Optionally perform one web search to verify a claim if needed
-6. Return a validated set: confirmed, rejected (with reason), or downgraded (confidence lowered)
+6. Return a validated set: confirmed, rejected (with reason), or downgraded
 
 ---
 
 ## What Gets Written to MongoDB
 
-After enrichment + validation:
+### Pass 1 — District Context
+
+After enrichment + validation for a district, write to ALL schools in that district:
+```python
+db.schools.update_many(
+    {"district.name": district_name},
+    {"$set": {"district_context": district_context_document}}
+)
+```
+
+The `district_context` key is a new top-level field. Every school in the district gets the same district_context document. This is intentional — district-level findings apply to the whole district.
+
+### Pass 2 — School Context
+
+After enrichment + validation for a school:
 ```python
 db.schools.update_one(
     {"_id": ncessch},
@@ -232,7 +358,9 @@ db.schools.update_one(
 )
 ```
 
-The `context` key is a new top-level field. It does not modify any existing fields. This makes the operation safe and non-destructive — if something goes wrong, we can `$unset` the `context` field from all documents and start over.
+The `context` key is a new top-level field per school.
+
+Both fields are safe and non-destructive — if something goes wrong, we can `$unset` either field from all documents and start over.
 
 ---
 
@@ -240,46 +368,55 @@ The `context` key is a new top-level field. It does not modify any existing fiel
 
 Following CLAUDE.md rules — complete English sentences, not codes.
 
-**Per-school log line:**
+**Pass 1 per-district log line:**
+```
+District 45/330: Bellingham School District (12 schools). Enrichment found 3 findings. Validation confirmed 2, rejected 1 (wrong district). Cost: $0.04. Elapsed: 18s.
+```
+
+**Pass 2 per-school log line:**
 ```
 School 1,201/2,532: Fairhaven Middle School (530042000104). Enrichment found 4 findings. Validation confirmed 3, rejected 1 (wrong school). Cost: $0.05. Elapsed: 14s.
 ```
 
-**Summary at end of batch:**
+**Summary at end of each pass:**
 ```
-Batch complete. 2,532 schools processed in 11h 42m.
-  Enriched: 1,847 (73.0%)
-  No findings: 612 (24.2%)
-  Failed: 73 (2.9%)
-  Total cost: $127.43
-  Sensitivity=high findings: 34 (need human review)
-  Category=other findings: 89 (need human review)
-  Failed schools logged to: logs/enrichment_failures_2026-02-22.csv
+Pass 1 complete. 330 districts processed in 1h 42m.
+  Enriched: 187 (56.7%)
+  No findings: 128 (38.8%)
+  Failed: 15 (4.5%)
+  Total cost: $11.22
+  Sensitivity=high findings: 12 (need human review)
 ```
 
 **Log files:**
 - Console output (always)
 - `logs/enrichment_YYYY-MM-DD_HHMMSS.log` (timestamped log file)
-- `logs/enrichment_failures_YYYY-MM-DD.csv` (failed schools with error details)
+- `logs/enrichment_failures_YYYY-MM-DD.csv` (failed entities with error details)
 
 ---
 
 ## Testing and Verification
 
-### During Pilot
-1. Fairhaven: run through enrichment and validation. Builder will review all returned findings against known local reality. Haiku should surface real, verifiable findings — the builder will judge whether the results are credible and complete. No specific incidents are pre-specified as pass/fail criteria.
-2. At least some Seattle schools should have news findings
-3. Rural schools may legitimately have zero findings — that's OK
-4. No hallucinated findings (validation should catch these)
+### During Pilot (Pass 1)
+1. Bellingham district: builder reviews all findings against known local reality
+2. Seattle district: should surface investigations or news given district size
+3. Small rural districts: may legitimately have zero findings — that's OK
+4. No Washington, D.C. contamination in results
 5. All source URLs should be real (spot-check manually)
 
-### After Full Batch
-1. Fairhaven golden school check: builder reviews all findings against known local reality for credibility and completeness
-2. Distribution summary: how many enriched, no findings, failed
+### During Pilot (Pass 2)
+1. Fairhaven: builder reviews school-level + district-level findings together for credibility and completeness
+2. At least some schools should have school-specific findings distinct from district findings
+3. No hallucinated findings (validation should catch these)
+4. All source URLs should be real (spot-check manually)
+
+### After Full Batch (Both Passes)
+1. Fairhaven golden school check: builder reviews all findings (school + district) against known local reality
+2. Distribution summary per pass: how many enriched, no findings, failed
 3. Sensitivity findings count for human review queue
 4. "Other" findings count for human review queue
-5. Cost summary: actual vs. estimated
-6. Sample 10 random schools — do findings look real?
+5. Cost summary per pass: actual vs. estimated
+6. Sample 10 random schools — do school + district findings look real and non-overlapping?
 
 ---
 
@@ -287,24 +424,30 @@ Batch complete. 2,532 schools processed in 11h 42m.
 
 | File | Purpose |
 |------|---------|
-| `pipeline/17_haiku_enrichment.py` | Main enrichment script |
-| `prompts/context_enrichment_v1.txt` | Enrichment prompt template |
-| `prompts/context_validation_v1.txt` | Validation prompt template |
-| `data/enrichment_checkpoint.jsonl` | Resume checkpoint |
-| `phases/phase-4/pilot_report.md` | Pilot results for human review |
+| `pipeline/17_haiku_enrichment.py` | Main enrichment script (both passes) |
+| `prompts/district_enrichment_v1.txt` | District enrichment prompt template (NEW) |
+| `prompts/district_validation_v1.txt` | District validation prompt template (NEW) |
+| `prompts/context_enrichment_v1.txt` | School enrichment prompt template (updated) |
+| `prompts/context_validation_v1.txt` | School validation prompt template (updated) |
+| `data/district_enrichment_checkpoint.jsonl` | District pass resume checkpoint (NEW) |
+| `data/enrichment_checkpoint.jsonl` | School pass resume checkpoint |
+| `phases/phase-4/pilot_report.md` | Combined pilot results for human review |
 | `phases/phase-4/receipt.md` | Verification receipt |
 | `logs/enrichment_*.log` | Run logs |
-| `logs/enrichment_failures_*.csv` | Failed school details |
+| `logs/enrichment_failures_*.csv` | Failed entity details |
 
 ---
 
 ## Sequence of Work
 
-1. Write enrichment prompt (`prompts/context_enrichment_v1.txt`)
-2. Write validation prompt (`prompts/context_validation_v1.txt`)
-3. Build the enrichment script (`pipeline/17_haiku_enrichment.py`)
-4. Run pilot batch (25 schools)
-5. Generate pilot report → **HUMAN REVIEW GATE**
-6. (After approval) Run full batch
-7. Generate verification receipt
-8. Commit everything
+1. Write district enrichment prompt (`prompts/district_enrichment_v1.txt`)
+2. Write district validation prompt (`prompts/district_validation_v1.txt`)
+3. Update school enrichment prompt — "Washington state" fix, add note about not duplicating district findings
+4. Update school validation prompt — "Washington state" fix
+5. Update `pipeline/17_haiku_enrichment.py` — add `--pass district` mode, district checkpoint, district MongoDB write
+6. Run Pass 1 pilot (10 districts) → **HUMAN REVIEW GATE**
+7. (After approval) Run Pass 1 full batch (~330 districts)
+8. Re-run Pass 2 pilot (25 schools, with updated prompts) → **HUMAN REVIEW GATE**
+9. (After approval) Run Pass 2 full batch (2,532 schools)
+10. Generate combined verification receipt
+11. Commit everything
