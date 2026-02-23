@@ -45,7 +45,7 @@ Phase 4 adds a new top-level `context` key.
 
 ## Files Created by This Phase
 
-- `pipeline/09_haiku_enrichment.py` — Main enrichment script
+- `pipeline/17_haiku_enrichment.py` — Main enrichment script
 - `prompts/context_enrichment_v1.txt` — Enrichment prompt template
 - `prompts/context_validation_v1.txt` — Validation prompt template
 - `data/enrichment_checkpoint.jsonl` — Resume checkpoint (per-school results)

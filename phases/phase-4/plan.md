@@ -22,9 +22,9 @@ The only modification: tag excluded schools in checkpoint output so we can analy
 
 ## Architecture
 
-### One Script: `pipeline/09_haiku_enrichment.py`
+### One Script: `pipeline/17_haiku_enrichment.py`
 
-Why 09? It runs after the Phase 3 comparison engine (08). It reads from MongoDB and writes back to MongoDB. It does not depend on any local CSV files.
+Why 17? Pipeline numbering continues from Phase 3 (01-16 already exist). It reads from MongoDB and writes back to MongoDB. It does not depend on any local CSV files.
 
 ### Two Prompts (Versioned, Stored as Plaintext)
 
@@ -287,7 +287,7 @@ Batch complete. 2,532 schools processed in 11h 42m.
 
 | File | Purpose |
 |------|---------|
-| `pipeline/09_haiku_enrichment.py` | Main enrichment script |
+| `pipeline/17_haiku_enrichment.py` | Main enrichment script |
 | `prompts/context_enrichment_v1.txt` | Enrichment prompt template |
 | `prompts/context_validation_v1.txt` | Validation prompt template |
 | `data/enrichment_checkpoint.jsonl` | Resume checkpoint |
@@ -302,7 +302,7 @@ Batch complete. 2,532 schools processed in 11h 42m.
 
 1. Write enrichment prompt (`prompts/context_enrichment_v1.txt`)
 2. Write validation prompt (`prompts/context_validation_v1.txt`)
-3. Build the enrichment script (`pipeline/09_haiku_enrichment.py`)
+3. Build the enrichment script (`pipeline/17_haiku_enrichment.py`)
 4. Run pilot batch (25 schools)
 5. Generate pilot report → **HUMAN REVIEW GATE**
 6. (After approval) Run full batch
