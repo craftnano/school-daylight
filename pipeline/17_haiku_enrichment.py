@@ -1,19 +1,23 @@
 """
-17_haiku_enrichment.py — Haiku web search context enrichment for every school.
+17_haiku_enrichment.py — Two-pass Haiku web search context enrichment.
 
-PURPOSE: For each school, call Haiku with web search to find contextual signals
-         (news, investigations, awards, leadership changes, programs). A second
-         Haiku call validates each finding. Store results in MongoDB.
-INPUTS:  MongoDB Atlas (schooldaylight.schools), prompts/context_enrichment_v1.txt,
-         prompts/context_validation_v1.txt
-OUTPUTS: Adds context field to each school document in MongoDB. Writes checkpoint
-         to data/enrichment_checkpoint.jsonl. Logs to logs/enrichment_*.log.
-JOIN KEYS: _id (NCESSCH)
+PURPOSE: Pass 1 (district): For each district, search for district-wide contextual
+         signals (investigations, lawsuits, leadership changes). Store as
+         district_context on every school in the district.
+         Pass 2 (school): For each school, search for school-specific signals
+         (awards, programs, news). Store as context on the school document.
+INPUTS:  MongoDB Atlas (schooldaylight.schools),
+         prompts/district_enrichment_v1.txt, prompts/district_validation_v1.txt,
+         prompts/context_enrichment_v1.txt, prompts/context_validation_v1.txt
+OUTPUTS: Adds district_context and context fields to school documents in MongoDB.
+         Writes checkpoints to data/district_enrichment_checkpoint.jsonl and
+         data/enrichment_checkpoint.jsonl. Logs to logs/enrichment_*.log.
+JOIN KEYS: _id (NCESSCH), district.name
 SUPPRESSION HANDLING: N/A — this step adds AI-sourced context, not tabular data.
 RECEIPT: phases/phase-4/receipt.md
 FAILURE MODES: API timeout → retry with backoff. 429 rate limit → wait and retry
                (does not count against retry limit). JSON parse failure → retry.
-               After 3 failed retries, school marked as failed and skipped.
+               After 3 failed retries, entity marked as failed and skipped.
 """
 
 import os
@@ -39,10 +43,17 @@ import config
 # ============================================================================
 
 MODEL = "claude-haiku-4-5-20251001"
-ENRICHMENT_PROMPT_PATH = os.path.join(config.PROJECT_ROOT, "prompts", "context_enrichment_v1.txt")
-VALIDATION_PROMPT_PATH = os.path.join(config.PROJECT_ROOT, "prompts", "context_validation_v1.txt")
-CHECKPOINT_PATH = os.path.join(config.DATA_DIR, "enrichment_checkpoint.jsonl")
 DATABASE_NAME = "schooldaylight"
+
+# Prompt paths — four prompts for two passes
+DISTRICT_ENRICHMENT_PROMPT = os.path.join(config.PROJECT_ROOT, "prompts", "district_enrichment_v1.txt")
+DISTRICT_VALIDATION_PROMPT = os.path.join(config.PROJECT_ROOT, "prompts", "district_validation_v1.txt")
+SCHOOL_ENRICHMENT_PROMPT = os.path.join(config.PROJECT_ROOT, "prompts", "context_enrichment_v1.txt")
+SCHOOL_VALIDATION_PROMPT = os.path.join(config.PROJECT_ROOT, "prompts", "context_validation_v1.txt")
+
+# Checkpoint paths — separate files so passes can run independently
+DISTRICT_CHECKPOINT_PATH = os.path.join(config.DATA_DIR, "district_enrichment_checkpoint.jsonl")
+SCHOOL_CHECKPOINT_PATH = os.path.join(config.DATA_DIR, "enrichment_checkpoint.jsonl")
 
 # Cost controls from plan
 MAX_ENRICHMENT_SEARCHES = 2
@@ -104,7 +115,7 @@ class RateLimiter:
 
 
 # ============================================================================
-# PROMPT LOADING
+# PROMPT LOADING AND FILLING
 # ============================================================================
 
 def load_prompt(path):
@@ -112,15 +123,24 @@ def load_prompt(path):
     if not os.path.exists(path):
         raise FileNotFoundError(
             f"Prompt file not found at {path}. "
-            "Make sure the prompts/ directory contains the enrichment and "
-            "validation prompt files."
+            "Make sure the prompts/ directory contains all four prompt files "
+            "(district_enrichment, district_validation, context_enrichment, context_validation)."
         )
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
 
-def fill_enrichment_prompt(template, school):
-    """Fill the enrichment prompt template with school details.
+def fill_district_prompt(template, district_name):
+    """Fill a district-level prompt template.
+
+    Uses str.replace() instead of str.format() because the prompt templates
+    contain JSON examples with curly braces that would break .format().
+    """
+    return template.replace("{district_name}", district_name)
+
+
+def fill_school_prompt(template, school):
+    """Fill a school-level prompt template with school details.
 
     Uses str.replace() instead of str.format() because the prompt templates
     contain JSON examples with curly braces that would break .format().
@@ -136,12 +156,15 @@ def fill_enrichment_prompt(template, school):
     return result
 
 
-def fill_validation_prompt(template, school, findings_json):
-    """Fill the validation prompt template with school details and findings.
+def fill_district_validation_prompt(template, district_name, findings_json):
+    """Fill a district validation prompt with district name and findings."""
+    result = template.replace("{district_name}", district_name)
+    result = result.replace("{findings_json}", findings_json)
+    return result
 
-    Uses str.replace() instead of str.format() because the prompt templates
-    contain JSON examples with curly braces that would break .format().
-    """
+
+def fill_school_validation_prompt(template, school, findings_json):
+    """Fill a school validation prompt with school details and findings."""
     district_name = school.get("district", {}).get("name", "Unknown District")
     city = school.get("address", {}).get("city", "Unknown City")
     state = school.get("address", {}).get("state", "WA")
@@ -199,13 +222,13 @@ def extract_json(text):
 
 
 # ============================================================================
-# API CALLS — enrichment and validation
+# API CALLS — enrichment and validation (shared by both passes)
 # ============================================================================
 
 def call_enrichment(client, prompt_text, rate_limiter, logger):
     """Call Haiku with web search for context enrichment.
 
-    Returns (parsed_json, usage_dict, actual_model) or raises on API error.
+    Returns (text_content, usage_dict, actual_model) or raises on API error.
     """
     rate_limiter.wait()
 
@@ -220,8 +243,8 @@ def call_enrichment(client, prompt_text, rate_limiter, logger):
         messages=[{"role": "user", "content": prompt_text}]
     )
 
-    # Extract the text block from the response (may contain server_tool_use
-    # and web_search_tool_result blocks before the final text)
+    # Extract the last text block from the response (earlier text blocks are
+    # intro text before/between web searches; the JSON is in the final one)
     text_content = None
     for block in response.content:
         if block.type == "text":
@@ -247,7 +270,7 @@ def call_enrichment(client, prompt_text, rate_limiter, logger):
 def call_validation(client, prompt_text, rate_limiter, logger):
     """Call Haiku with web search for finding validation.
 
-    Returns (parsed_json, usage_dict, actual_model) or raises on API error.
+    Returns (text_content, usage_dict, actual_model) or raises on API error.
     """
     rate_limiter.wait()
 
@@ -294,7 +317,6 @@ def validate_findings(findings, validation_data):
     Rejected findings are removed. Downgraded findings get updated confidence.
     """
     validations = validation_data.get("validations", [])
-    summary = validation_data.get("summary", {})
 
     validated = []
     confirmed_count = 0
@@ -313,7 +335,10 @@ def validate_findings(findings, validation_data):
 
         if judgment == "rejected":
             rejected_count += 1
-            if "wrong" in notes.lower() and "school" in notes.lower():
+            # Count wrong-school/wrong-district rejections
+            notes_lower = notes.lower()
+            if ("wrong" in notes_lower and
+                    ("school" in notes_lower or "district" in notes_lower or "state" in notes_lower)):
                 wrong_school_count += 1
             continue  # Do not include rejected findings
 
@@ -370,81 +395,68 @@ def sanitize_finding(finding):
 
 
 # ============================================================================
-# CHECKPOINT — resume capability
+# CHECKPOINT — resume capability (works for both passes)
 # ============================================================================
 
-def load_checkpoint():
-    """Load already-processed NCES IDs from the checkpoint file.
+def load_checkpoint(checkpoint_path, key_field):
+    """Load already-processed entity keys from a checkpoint file.
 
-    Returns a set of NCESSCH strings that have already been processed.
+    Args:
+        checkpoint_path: Path to the JSONL checkpoint file.
+        key_field: The JSON field that identifies each entity (e.g., "ncessch"
+                   for schools, "district_name" for districts).
+
+    Returns a set of already-processed entity keys.
     """
     processed = set()
-    if not os.path.exists(CHECKPOINT_PATH):
+    if not os.path.exists(checkpoint_path):
         return processed
 
-    with open(CHECKPOINT_PATH, "r", encoding="utf-8") as f:
+    with open(checkpoint_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
             try:
                 record = json.loads(line)
-                processed.add(record["ncessch"])
+                processed.add(record[key_field])
             except (json.JSONDecodeError, KeyError):
                 continue
 
     return processed
 
 
-def write_checkpoint(ncessch, status, findings_count, error=None):
-    """Append a checkpoint record for one school."""
-    record = {
-        "ncessch": ncessch,
-        "status": status,
-        "findings_count": findings_count,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-    if error:
-        record["error"] = error
-
-    os.makedirs(os.path.dirname(CHECKPOINT_PATH), exist_ok=True)
-    with open(CHECKPOINT_PATH, "a", encoding="utf-8") as f:
+def write_checkpoint(checkpoint_path, record):
+    """Append a checkpoint record."""
+    os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
+    with open(checkpoint_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
 
 
 # ============================================================================
-# PROCESS ONE SCHOOL — the core loop body
+# API CALL WITH RETRY — shared retry logic for both passes
 # ============================================================================
 
-def process_school(school, client, enrichment_template, validation_template,
-                   rate_limiter, db, logger):
-    """Run enrichment + validation for one school. Write results to MongoDB.
+def call_with_retry(call_fn, client, prompt_text, rate_limiter, logger, entity_name):
+    """Call an API function with retry logic.
 
-    Returns (status, findings_count, cost_dict) or raises after max retries.
+    Args:
+        call_fn: Either call_enrichment or call_validation.
+        entity_name: Human-readable name for logging (school or district name).
+
+    Returns (text_content, usage_dict, actual_model) or raises after max retries.
+    Returns (None, {}, None) if all retries exhausted and caller should handle gracefully.
     """
-    ncessch = school["_id"]
-    school_name = school["name"]
-
-    # Step 1: Build and send enrichment prompt
-    prompt_text = fill_enrichment_prompt(enrichment_template, school)
-
-    enrichment_text = None
-    enrichment_usage = {}
-    enrichment_model = None
     retries = 0
-
     while retries <= MAX_RETRIES:
         try:
-            enrichment_text, enrichment_usage, enrichment_model = call_enrichment(
-                client, prompt_text, rate_limiter, logger
-            )
-            break
+            return call_fn(client, prompt_text, rate_limiter, logger)
         except Exception as e:
             error_str = str(e)
 
             # 429 rate limit — wait and retry, does NOT count against retry limit
             if "429" in error_str or "rate" in error_str.lower():
-                logger.info(f"  Rate limited on {school_name}. Waiting 60 seconds.")
+                logger.info(f"  Rate limited on {entity_name}. Waiting 60 seconds.")
                 time.sleep(60)
                 continue
 
@@ -452,62 +464,111 @@ def process_school(school, client, enrichment_template, validation_template,
             if retries > MAX_RETRIES:
                 raise
             wait = RETRY_BACKOFF[retries - 1]
-            logger.info(f"  API error on {school_name} (attempt {retries}/{MAX_RETRIES}): {error_str}. Retrying in {wait}s.")
+            logger.info(f"  API error on {entity_name} (attempt {retries}/{MAX_RETRIES}): {error_str}. Retrying in {wait}s.")
             time.sleep(wait)
+
+    # Should not reach here, but just in case
+    raise RuntimeError(f"Unexpected: exceeded retry loop for {entity_name}")
+
+
+# ============================================================================
+# BUILD CONTEXT DOCUMENT — shared between passes
+# ============================================================================
+
+def build_context_doc(status, findings, validation_summary, cost, error=None,
+                      prompt_version="v1", validation_prompt_version="v1",
+                      district_name=None):
+    """Build a context document for either pass."""
+    doc = {
+        "status": status,
+        "prompt_version": prompt_version,
+        "validation_prompt_version": validation_prompt_version,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "model": MODEL,
+        "cost": cost,
+        "findings": findings,
+        "validation_summary": validation_summary,
+        "error": error,
+    }
+    # District context includes the district name for clarity
+    if district_name is not None:
+        doc["district_name"] = district_name
+    return doc
+
+
+def build_cost_dict(enrichment_usage, validation_usage, actual_model):
+    """Combine enrichment and validation usage into a single cost dict."""
+    total_web = (enrichment_usage.get("web_search_requests", 0) +
+                 validation_usage.get("web_search_requests", 0))
+    return {
+        "enrichment_input_tokens": enrichment_usage.get("enrichment_input_tokens", 0),
+        "enrichment_output_tokens": enrichment_usage.get("enrichment_output_tokens", 0),
+        "validation_input_tokens": validation_usage.get("validation_input_tokens", 0),
+        "validation_output_tokens": validation_usage.get("validation_output_tokens", 0),
+        "web_search_requests": total_web,
+        "total_input_tokens": (enrichment_usage.get("enrichment_input_tokens", 0) +
+                               validation_usage.get("validation_input_tokens", 0)),
+        "total_output_tokens": (enrichment_usage.get("enrichment_output_tokens", 0) +
+                                validation_usage.get("validation_output_tokens", 0)),
+        "actual_model": actual_model or MODEL,
+    }
+
+
+# ============================================================================
+# PROCESS ONE ENTITY — generic enrichment + validation pipeline
+# ============================================================================
+
+def run_enrichment_pipeline(client, enrichment_prompt, validation_prompt_fn,
+                            rate_limiter, logger, entity_name):
+    """Run enrichment + validation for one entity (district or school).
+
+    Args:
+        enrichment_prompt: The filled enrichment prompt string.
+        validation_prompt_fn: A callable that takes (sanitized_findings_json) and
+                              returns the filled validation prompt string.
+        entity_name: Human-readable name for logging.
+
+    Returns (status, validated_findings, validation_summary, cost_dict).
+    """
+    # Step 1: Enrichment call
+    enrichment_text, enrichment_usage, enrichment_model = call_with_retry(
+        call_enrichment, client, enrichment_prompt, rate_limiter, logger, entity_name
+    )
 
     # Step 2: Parse enrichment response
     enrichment_data = extract_json(enrichment_text)
 
     if enrichment_data is None:
-        # JSON parse failure — treat as failed
-        error_msg = f"Could not parse enrichment JSON. Raw response: {enrichment_text[:200] if enrichment_text else 'None'}"
-        context_doc = build_failed_context(error_msg, enrichment_usage, enrichment_model)
-        write_to_mongo(db, ncessch, context_doc)
-        return ("failed", 0, context_doc.get("cost", {}))
+        error_msg = (f"Could not parse enrichment JSON. "
+                     f"Raw response: {enrichment_text[:200] if enrichment_text else 'None'}")
+        cost = build_cost_dict(enrichment_usage, {}, enrichment_model)
+        return ("failed", [], None, cost, error_msg)
 
     raw_findings = enrichment_data.get("findings", [])
 
-    # Step 3: If no findings, skip validation
+    # Step 3: If no findings, skip validation — save tokens
     if len(raw_findings) == 0:
-        context_doc = build_no_findings_context(enrichment_usage, enrichment_model)
-        write_to_mongo(db, ncessch, context_doc)
-        return ("no_findings", 0, context_doc.get("cost", {}))
+        cost = build_cost_dict(enrichment_usage, {}, enrichment_model)
+        return ("no_findings", [], None, cost, None)
 
-    # Step 4: Sanitize findings before validation
-    sanitized_findings = [sanitize_finding(f) for f in raw_findings]
+    # Step 4: Sanitize findings
+    sanitized = [sanitize_finding(f) for f in raw_findings]
 
-    # Step 5: Run validation pass
-    findings_json = json.dumps(sanitized_findings, indent=2)
-    validation_prompt = fill_validation_prompt(validation_template, school, findings_json)
+    # Step 5: Validation call
+    findings_json = json.dumps(sanitized, indent=2)
+    validation_prompt = validation_prompt_fn(findings_json)
 
     validation_text = None
     validation_usage = {}
-    validation_model = None
-    retries = 0
-
-    while retries <= MAX_RETRIES:
-        try:
-            validation_text, validation_usage, validation_model = call_validation(
-                client, validation_prompt, rate_limiter, logger
-            )
-            break
-        except Exception as e:
-            error_str = str(e)
-
-            if "429" in error_str or "rate" in error_str.lower():
-                logger.info(f"  Rate limited on validation for {school_name}. Waiting 60 seconds.")
-                time.sleep(60)
-                continue
-
-            retries += 1
-            if retries > MAX_RETRIES:
-                # Validation failed but enrichment succeeded — store unvalidated
-                logger.info(f"  Validation failed for {school_name} after {MAX_RETRIES} retries. Storing unvalidated findings.")
-                validation_text = None
-                break
-            wait = RETRY_BACKOFF[retries - 1]
-            logger.info(f"  Validation API error on {school_name} (attempt {retries}/{MAX_RETRIES}): {error_str}. Retrying in {wait}s.")
-            time.sleep(wait)
+    try:
+        validation_text, validation_usage, _ = call_with_retry(
+            call_validation, client, validation_prompt, rate_limiter, logger,
+            f"validation for {entity_name}"
+        )
+    except Exception as e:
+        # Validation failed but enrichment succeeded — store unvalidated
+        logger.info(f"  Validation failed for {entity_name} after {MAX_RETRIES} retries. "
+                    "Storing unvalidated findings.")
 
     # Step 6: Merge validation results
     if validation_text:
@@ -516,118 +577,153 @@ def process_school(school, client, enrichment_template, validation_template,
         validation_data = None
 
     if validation_data:
-        validated_findings, validation_summary = validate_findings(sanitized_findings, validation_data)
+        validated_findings, validation_summary = validate_findings(sanitized, validation_data)
     else:
         # Validation parse failed — keep all findings but mark as unvalidated
-        validated_findings = sanitized_findings
+        validated_findings = sanitized
         for f in validated_findings:
             f["validated"] = False
             f["validation_notes"] = "Validation pass failed or returned unparseable response."
         validation_summary = {
-            "findings_submitted": len(sanitized_findings),
+            "findings_submitted": len(sanitized),
             "findings_confirmed": 0,
             "findings_rejected": 0,
             "findings_downgraded": 0,
             "wrong_school_detected": 0,
         }
 
-    # Step 7: Build and write context document
-    total_web_searches = enrichment_usage.get("web_search_requests", 0) + validation_usage.get("web_search_requests", 0)
-
-    cost = {
-        "enrichment_input_tokens": enrichment_usage.get("enrichment_input_tokens", 0),
-        "enrichment_output_tokens": enrichment_usage.get("enrichment_output_tokens", 0),
-        "validation_input_tokens": validation_usage.get("validation_input_tokens", 0),
-        "validation_output_tokens": validation_usage.get("validation_output_tokens", 0),
-        "web_search_requests": total_web_searches,
-        "total_input_tokens": enrichment_usage.get("enrichment_input_tokens", 0) + validation_usage.get("validation_input_tokens", 0),
-        "total_output_tokens": enrichment_usage.get("enrichment_output_tokens", 0) + validation_usage.get("validation_output_tokens", 0),
-        "actual_model": enrichment_model or MODEL,
-    }
-
-    context_doc = {
-        "status": "enriched",
-        "prompt_version": "v1",
-        "validation_prompt_version": "v1",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "model": MODEL,
-        "cost": cost,
-        "findings": validated_findings,
-        "validation_summary": validation_summary,
-        "error": None,
-    }
-
-    write_to_mongo(db, ncessch, context_doc)
-    return ("enriched", len(validated_findings), cost)
+    cost = build_cost_dict(enrichment_usage, validation_usage, enrichment_model)
+    return ("enriched", validated_findings, validation_summary, cost, None)
 
 
 # ============================================================================
-# HELPER BUILDERS — context documents for edge cases
+# PASS 1: DISTRICT-LEVEL ENRICHMENT
 # ============================================================================
 
-def build_no_findings_context(enrichment_usage, actual_model):
-    """Build a context document when enrichment returns zero findings."""
-    return {
-        "status": "no_findings",
-        "prompt_version": "v1",
-        "validation_prompt_version": "v1",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "model": MODEL,
-        "cost": {
-            "enrichment_input_tokens": enrichment_usage.get("enrichment_input_tokens", 0),
-            "enrichment_output_tokens": enrichment_usage.get("enrichment_output_tokens", 0),
-            "validation_input_tokens": 0,
-            "validation_output_tokens": 0,
-            "web_search_requests": enrichment_usage.get("web_search_requests", 0),
-            "total_input_tokens": enrichment_usage.get("enrichment_input_tokens", 0),
-            "total_output_tokens": enrichment_usage.get("enrichment_output_tokens", 0),
-            "actual_model": actual_model or MODEL,
-        },
-        "findings": [],
-        "validation_summary": None,
-        "error": None,
-    }
+def process_district(district_name, client, enrichment_template, validation_template,
+                     rate_limiter, db, logger):
+    """Run enrichment + validation for one district. Write to all schools in district.
+
+    Returns (status, findings_count, cost_dict).
+    """
+    # Build prompts
+    enrichment_prompt = fill_district_prompt(enrichment_template, district_name)
+
+    def make_validation_prompt(findings_json):
+        return fill_district_validation_prompt(validation_template, district_name, findings_json)
+
+    # Run the pipeline
+    status, findings, val_summary, cost, error = run_enrichment_pipeline(
+        client, enrichment_prompt, make_validation_prompt,
+        rate_limiter, logger, district_name
+    )
+
+    # Build context document
+    context_doc = build_context_doc(
+        status=status,
+        findings=findings,
+        validation_summary=val_summary,
+        cost=cost,
+        error=error,
+        district_name=district_name,
+    )
+
+    # Write to ALL schools in this district
+    result = db.schools.update_many(
+        {"district.name": district_name},
+        {"$set": {"district_context": context_doc}}
+    )
+    schools_updated = result.modified_count
+
+    return (status, len(findings), cost, schools_updated)
 
 
-def build_failed_context(error_msg, enrichment_usage, actual_model):
-    """Build a context document when processing fails."""
-    return {
-        "status": "failed",
-        "prompt_version": "v1",
-        "validation_prompt_version": "v1",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "model": MODEL,
-        "cost": {
-            "enrichment_input_tokens": enrichment_usage.get("enrichment_input_tokens", 0),
-            "enrichment_output_tokens": enrichment_usage.get("enrichment_output_tokens", 0),
-            "validation_input_tokens": 0,
-            "validation_output_tokens": 0,
-            "web_search_requests": enrichment_usage.get("web_search_requests", 0),
-            "total_input_tokens": enrichment_usage.get("enrichment_input_tokens", 0),
-            "total_output_tokens": enrichment_usage.get("enrichment_output_tokens", 0),
-            "actual_model": actual_model or MODEL,
-        },
-        "findings": [],
-        "validation_summary": None,
-        "error": error_msg,
-    }
+def select_pilot_districts(db, logger):
+    """Select 10 representative districts for the pilot batch.
+
+    Returns a list of district name strings.
+    """
+    pilot = []
+
+    # 3 large districts
+    for name_pattern in ["Seattle", "Spokane School District", "Bellingham"]:
+        match = db.schools.find_one(
+            {"district.name": {"$regex": name_pattern, "$options": "i"}},
+            {"district.name": 1}
+        )
+        if match:
+            pilot.append(match["district"]["name"])
+
+    # 4 mid-size districts
+    for name_pattern in ["Tacoma", "Yakima", "Kennewick", "Olympia"]:
+        match = db.schools.find_one(
+            {"district.name": {"$regex": name_pattern, "$options": "i"}},
+            {"district.name": 1}
+        )
+        if match:
+            pilot.append(match["district"]["name"])
+
+    # 3 small/rural districts — pick districts with only 1-2 schools
+    small = list(db.schools.aggregate([
+        {"$group": {"_id": "$district.name", "count": {"$sum": 1}}},
+        {"$match": {"count": {"$lte": 2}, "_id": {"$nin": pilot}}},
+        {"$limit": 3}
+    ]))
+    pilot.extend([s["_id"] for s in small])
+
+    # Deduplicate
+    seen = set()
+    unique = []
+    for d in pilot:
+        if d not in seen:
+            seen.add(d)
+            unique.append(d)
+
+    logger.info(f"Selected {len(unique)} pilot districts.")
+    return unique
 
 
 # ============================================================================
-# MONGODB WRITE
+# PASS 2: SCHOOL-LEVEL ENRICHMENT
 # ============================================================================
 
-def write_to_mongo(db, ncessch, context_doc):
-    """Write the context document to a school's MongoDB document."""
+def process_school(school, client, enrichment_template, validation_template,
+                   rate_limiter, db, logger):
+    """Run enrichment + validation for one school. Write to MongoDB.
+
+    Returns (status, findings_count, cost_dict).
+    """
+    ncessch = school["_id"]
+
+    # Build prompts
+    enrichment_prompt = fill_school_prompt(enrichment_template, school)
+
+    def make_validation_prompt(findings_json):
+        return fill_school_validation_prompt(validation_template, school, findings_json)
+
+    # Run the pipeline
+    status, findings, val_summary, cost, error = run_enrichment_pipeline(
+        client, enrichment_prompt, make_validation_prompt,
+        rate_limiter, logger, school["name"]
+    )
+
+    # Build context document
+    context_doc = build_context_doc(
+        status=status,
+        findings=findings,
+        validation_summary=val_summary,
+        cost=cost,
+        error=error,
+    )
+
+    # Write to this school's document
     db.schools.update_one(
         {"_id": ncessch},
         {"$set": {"context": context_doc}}
     )
 
+    return (status, len(findings), cost)
 
-# ============================================================================
-# PILOT SCHOOL SELECTION
-# ============================================================================
 
 def select_pilot_schools(db, logger):
     """Select 25 representative schools for the pilot batch.
@@ -665,9 +761,7 @@ def select_pilot_schools(db, logger):
     pilot_ids.extend([s["_id"] for s in bellingham])
 
     # 5. Mid-size districts (5 schools from different districts)
-    # Tacoma, Olympia, Yakima, Kennewick, Everett
-    mid_districts = ["Tacoma", "Olympia", "Yakima", "Kennewick", "Everett"]
-    for dist in mid_districts:
+    for dist in ["Tacoma", "Olympia", "Yakima", "Kennewick", "Everett"]:
         school = db.schools.find_one(
             {"district.name": {"$regex": dist, "$options": "i"},
              "school_type": "Regular School"},
@@ -724,12 +818,13 @@ def select_pilot_schools(db, logger):
 # PILOT REPORT GENERATION
 # ============================================================================
 
-def generate_pilot_report(results, logger):
+def generate_pilot_report(results, pass_name, total_entities_full_batch, logger):
     """Generate the pilot report markdown file.
 
     Args:
-        results: list of dicts with keys: ncessch, name, district, status,
-                 findings_count, findings, cost, validation_summary, category
+        results: list of result dicts (keys vary by pass type).
+        pass_name: "district" or "school".
+        total_entities_full_batch: total count for cost projection.
     """
     report_path = os.path.join(config.PHASES_DIR, "phase-4", "pilot_report.md")
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
@@ -744,14 +839,17 @@ def generate_pilot_report(results, logger):
 
     # Haiku pricing: $0.80/MTok input, $4.00/MTok output
     cost_usd = (total_cost_input * 0.80 + total_cost_output * 4.00) / 1_000_000
-    per_school_cost = cost_usd / len(results) if results else 0
-    projected_full = per_school_cost * 2532
+    per_entity_cost = cost_usd / len(results) if results else 0
+    projected_full = per_entity_cost * total_entities_full_batch
+
+    entity_label = "District" if pass_name == "district" else "School"
+    name_key = "district_name" if pass_name == "district" else "name"
 
     lines = []
-    lines.append("# Phase 4 — Pilot Batch Report")
+    lines.append(f"# Phase 4 — Pilot Batch Report ({entity_label} Pass)")
     lines.append("")
     lines.append(f"**Generated:** {datetime.now(timezone.utc).isoformat()}")
-    lines.append(f"**Schools processed:** {len(results)}")
+    lines.append(f"**{entity_label}s processed:** {len(results)}")
     lines.append(f"**Model:** {MODEL}")
     lines.append("")
     lines.append("---")
@@ -761,7 +859,7 @@ def generate_pilot_report(results, logger):
     lines.append(f"- Enriched (has findings): {enriched_count}")
     lines.append(f"- No findings: {no_findings_count}")
     lines.append(f"- Failed: {failed_count}")
-    lines.append(f"- Total findings across all schools: {total_findings}")
+    lines.append(f"- Total findings: {total_findings}")
     lines.append("")
     lines.append("## Cost")
     lines.append("")
@@ -769,37 +867,45 @@ def generate_pilot_report(results, logger):
     lines.append(f"- Total output tokens: {total_cost_output:,}")
     lines.append(f"- Total web searches: {total_web_searches}")
     lines.append(f"- **Total cost (tokens only): ${cost_usd:.2f}**")
-    lines.append(f"- **Per-school average: ${per_school_cost:.4f}**")
-    lines.append(f"- **Projected full batch (2,532 schools): ${projected_full:.2f}**")
-    lines.append(f"- Note: web search cost ($10/1000 searches) adds ~${total_web_searches * 0.01:.2f} for pilot, ~${total_web_searches / len(results) * 2532 * 0.01:.2f} projected for full batch")
+    lines.append(f"- **Per-{pass_name} average: ${per_entity_cost:.4f}**")
+    lines.append(f"- **Projected full batch ({total_entities_full_batch} {pass_name}s): ${projected_full:.2f}**")
+    if len(results) > 0:
+        avg_searches = total_web_searches / len(results)
+        lines.append(f"- Web search cost: ~${total_web_searches * 0.01:.2f} pilot, "
+                     f"~${avg_searches * total_entities_full_batch * 0.01:.2f} projected full batch")
     lines.append("")
     lines.append("---")
     lines.append("")
 
-    # Per-school results table
-    lines.append("## Per-School Results")
+    # Per-entity results table
+    lines.append(f"## Per-{entity_label} Results")
     lines.append("")
-    lines.append("| # | School | District | Status | Findings | Web Searches | Actual Model |")
-    lines.append("|---|--------|----------|--------|----------|-------------|--------------|")
+    extra_col = "| Schools Updated " if pass_name == "district" else ""
+    extra_hdr = "|----------------- " if pass_name == "district" else ""
+    lines.append(f"| # | {entity_label} | Status | Findings | Web Searches {extra_col}| Actual Model |")
+    lines.append(f"|---|--------|--------|----------|------------- {extra_hdr}|--------------|")
     for i, r in enumerate(results, 1):
         model_check = r["cost"].get("actual_model", "unknown")
         model_ok = "OK" if MODEL in str(model_check) else f"MISMATCH: {model_check}"
-        lines.append(f"| {i} | {r['name']} | {r['district']} | {r['status']} | {r['findings_count']} | {r['cost'].get('web_search_requests', 0)} | {model_ok} |")
+        name = r.get(name_key, r.get("name", "Unknown"))
+        extra_val = f"| {r.get('schools_updated', 'N/A')} " if pass_name == "district" else ""
+        lines.append(f"| {i} | {name} | {r['status']} | {r['findings_count']} | "
+                     f"{r['cost'].get('web_search_requests', 0)} {extra_val}| {model_ok} |")
     lines.append("")
     lines.append("---")
     lines.append("")
 
-    # Fairhaven section
-    fairhaven = [r for r in results if r["ncessch"] == FAIRHAVEN_NCESSCH]
-    if fairhaven:
-        fh = fairhaven[0]
-        lines.append("## Fairhaven Middle School (Golden School)")
-        lines.append("")
-        lines.append(f"**Status:** {fh['status']}")
-        lines.append(f"**Findings:** {fh['findings_count']}")
-        lines.append("")
-        if fh["findings"]:
-            for j, f in enumerate(fh["findings"], 1):
+    # Fairhaven section (school pass) or Bellingham section (district pass)
+    if pass_name == "district":
+        bellingham = [r for r in results if "Bellingham" in r.get("district_name", "")]
+        if bellingham:
+            bh = bellingham[0]
+            lines.append("## Bellingham School District (Golden School's District)")
+            lines.append("")
+            lines.append(f"**Status:** {bh['status']}")
+            lines.append(f"**Findings:** {bh['findings_count']}")
+            lines.append("")
+            for j, f in enumerate(bh.get("findings", []), 1):
                 lines.append(f"### Finding {j}: {f.get('category', 'unknown')}")
                 lines.append("")
                 lines.append(f"- **Summary:** {f.get('summary', 'N/A')}")
@@ -812,34 +918,50 @@ def generate_pilot_report(results, logger):
                 if f.get("validation_notes"):
                     lines.append(f"- **Validation notes:** {f['validation_notes']}")
                 lines.append("")
-        else:
-            lines.append("No findings returned. Builder should evaluate whether this is expected.")
+            lines.append("**Builder: review these findings against known local reality.**")
             lines.append("")
-        if fh.get("validation_summary"):
-            vs = fh["validation_summary"]
-            lines.append(f"**Validation summary:** {vs.get('findings_submitted', 0)} submitted, "
-                        f"{vs.get('findings_confirmed', 0)} confirmed, "
-                        f"{vs.get('findings_rejected', 0)} rejected, "
-                        f"{vs.get('findings_downgraded', 0)} downgraded, "
-                        f"{vs.get('wrong_school_detected', 0)} wrong-school")
+            lines.append("---")
             lines.append("")
-        lines.append("**Builder: review these findings against known local reality.**")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
+    else:
+        fairhaven = [r for r in results if r.get("ncessch") == FAIRHAVEN_NCESSCH]
+        if fairhaven:
+            fh = fairhaven[0]
+            lines.append("## Fairhaven Middle School (Golden School)")
+            lines.append("")
+            lines.append(f"**Status:** {fh['status']}")
+            lines.append(f"**Findings:** {fh['findings_count']}")
+            lines.append("")
+            for j, f in enumerate(fh.get("findings", []), 1):
+                lines.append(f"### Finding {j}: {f.get('category', 'unknown')}")
+                lines.append("")
+                lines.append(f"- **Summary:** {f.get('summary', 'N/A')}")
+                lines.append(f"- **Source:** [{f.get('source_name', 'N/A')}]({f.get('source_url', '')})")
+                lines.append(f"- **Source content:** {f.get('source_content_summary', 'N/A')}")
+                lines.append(f"- **Date:** {f.get('date', 'unknown')}")
+                lines.append(f"- **Confidence:** {f.get('confidence', 'unknown')}")
+                lines.append(f"- **Sensitivity:** {f.get('sensitivity', 'normal')}")
+                lines.append(f"- **Validated:** {f.get('validated', False)}")
+                if f.get("validation_notes"):
+                    lines.append(f"- **Validation notes:** {f['validation_notes']}")
+                lines.append("")
+            lines.append("**Builder: review these findings against known local reality.**")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
 
     # Sensitivity=high findings
     high_sensitivity = []
     for r in results:
+        entity = r.get(name_key, r.get("name", "Unknown"))
         for f in r.get("findings", []):
             if f.get("sensitivity") == "high":
-                high_sensitivity.append({"school": r["name"], "finding": f})
+                high_sensitivity.append({"entity": entity, "finding": f})
 
     lines.append("## Sensitivity=High Findings (Need Human Review)")
     lines.append("")
     if high_sensitivity:
         for hs in high_sensitivity:
-            lines.append(f"- **{hs['school']}**: {hs['finding'].get('summary', 'N/A')} "
+            lines.append(f"- **{hs['entity']}**: {hs['finding'].get('summary', 'N/A')} "
                         f"(category: {hs['finding'].get('category', 'unknown')}, "
                         f"source: {hs['finding'].get('source_name', 'unknown')})")
     else:
@@ -851,17 +973,18 @@ def generate_pilot_report(results, logger):
     # Category=other findings
     other_findings = []
     for r in results:
+        entity = r.get(name_key, r.get("name", "Unknown"))
         for f in r.get("findings", []):
             if f.get("category") == "other":
-                other_findings.append({"school": r["name"], "finding": f})
+                other_findings.append({"entity": entity, "finding": f})
 
     lines.append("## Category=Other Findings (Need Human Review)")
     lines.append("")
     if other_findings:
-        for of in other_findings:
-            lines.append(f"- **{of['school']}**: {of['finding'].get('summary', 'N/A')} "
-                        f"(subcategory: {of['finding'].get('subcategory', 'none')}, "
-                        f"source: {of['finding'].get('source_name', 'unknown')})")
+        for of_item in other_findings:
+            lines.append(f"- **{of_item['entity']}**: {of_item['finding'].get('summary', 'N/A')} "
+                        f"(subcategory: {of_item['finding'].get('subcategory', 'none')}, "
+                        f"source: {of_item['finding'].get('source_name', 'unknown')})")
     else:
         lines.append("None found in pilot batch.")
     lines.append("")
@@ -871,24 +994,25 @@ def generate_pilot_report(results, logger):
     # Validation rejections
     rejections = []
     for r in results:
+        entity = r.get(name_key, r.get("name", "Unknown"))
         vs = r.get("validation_summary")
         if vs and vs.get("findings_rejected", 0) > 0:
-            rejections.append({"school": r["name"], "summary": vs})
+            rejections.append({"entity": entity, "summary": vs})
 
     lines.append("## Validation Rejections")
     lines.append("")
     if rejections:
         for rej in rejections:
             vs = rej["summary"]
-            lines.append(f"- **{rej['school']}**: {vs.get('findings_rejected', 0)} rejected "
-                        f"({vs.get('wrong_school_detected', 0)} wrong-school)")
+            lines.append(f"- **{rej['entity']}**: {vs.get('findings_rejected', 0)} rejected "
+                        f"({vs.get('wrong_school_detected', 0)} wrong-entity)")
     else:
         lines.append("No findings were rejected by the validation pass.")
     lines.append("")
     lines.append("---")
     lines.append("")
 
-    # All findings by category
+    # Findings by category
     cat_counts = Counter()
     for r in results:
         for f in r.get("findings", []):
@@ -919,25 +1043,34 @@ def generate_pilot_report(results, logger):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Haiku web search context enrichment for WA schools."
+        description="Two-pass Haiku web search context enrichment for WA schools."
+    )
+    parser.add_argument(
+        "--pass", dest="pass_type", choices=["district", "school"], required=True,
+        help="Which pass to run: 'district' (Pass 1) or 'school' (Pass 2)."
     )
     parser.add_argument(
         "--pilot", action="store_true",
-        help="Run pilot batch only (25 representative schools)."
+        help="Run pilot batch only."
     )
     parser.add_argument(
-        "--school", type=str, default=None,
-        help="Run enrichment for a single school by NCESSCH ID."
+        "--school", dest="single_school", type=str, default=None,
+        help="Run school enrichment for a single school by NCESSCH ID (school pass only)."
+    )
+    parser.add_argument(
+        "--district", dest="single_district", type=str, default=None,
+        help="Run district enrichment for a single district by name (district pass only)."
     )
     parser.add_argument(
         "--reset", action="store_true",
-        help="Clear checkpoint file and start fresh (does not clear MongoDB context fields)."
+        help="Clear checkpoint file for this pass and start fresh."
     )
     args = parser.parse_args()
 
+    pass_type = args.pass_type
     logger = setup_logging("enrichment")
     logger.info("=" * 70)
-    logger.info("Phase 4: Haiku Context Enrichment")
+    logger.info(f"Phase 4: Haiku Context Enrichment — {pass_type.upper()} pass")
     logger.info("=" * 70)
 
     # Validate prerequisites
@@ -955,12 +1088,23 @@ def main():
         )
         sys.exit(1)
 
-    # Load prompts
+    # Load prompts for the appropriate pass
+    if pass_type == "district":
+        enrichment_path = DISTRICT_ENRICHMENT_PROMPT
+        validation_path = DISTRICT_VALIDATION_PROMPT
+        checkpoint_path = DISTRICT_CHECKPOINT_PATH
+        checkpoint_key = "district_name"
+    else:
+        enrichment_path = SCHOOL_ENRICHMENT_PROMPT
+        validation_path = SCHOOL_VALIDATION_PROMPT
+        checkpoint_path = SCHOOL_CHECKPOINT_PATH
+        checkpoint_key = "ncessch"
+
     logger.info("Loading prompt templates...")
-    enrichment_template = load_prompt(ENRICHMENT_PROMPT_PATH)
-    validation_template = load_prompt(VALIDATION_PROMPT_PATH)
-    logger.info(f"  Enrichment prompt: {ENRICHMENT_PROMPT_PATH}")
-    logger.info(f"  Validation prompt: {VALIDATION_PROMPT_PATH}")
+    enrichment_template = load_prompt(enrichment_path)
+    validation_template = load_prompt(validation_path)
+    logger.info(f"  Enrichment: {enrichment_path}")
+    logger.info(f"  Validation: {validation_path}")
 
     # Connect to services
     logger.info("Connecting to MongoDB Atlas...")
@@ -980,132 +1124,258 @@ def main():
 
     # Handle checkpoint
     if args.reset:
-        if os.path.exists(CHECKPOINT_PATH):
-            os.remove(CHECKPOINT_PATH)
-            logger.info("Checkpoint file cleared.")
+        if os.path.exists(checkpoint_path):
+            os.remove(checkpoint_path)
+            logger.info(f"Checkpoint file cleared: {checkpoint_path}")
 
-    already_processed = load_checkpoint()
+    already_processed = load_checkpoint(checkpoint_path, checkpoint_key)
     if already_processed:
-        logger.info(f"Checkpoint: {len(already_processed)} schools already processed.")
+        logger.info(f"Checkpoint: {len(already_processed)} {pass_type}s already processed.")
 
-    # Select schools to process
-    if args.school:
-        # Single school mode
-        school_doc = db.schools.find_one({"_id": args.school})
-        if not school_doc:
-            logger.error(f"School {args.school} not found in MongoDB.")
-            sys.exit(1)
-        schools_to_process = [school_doc]
-        logger.info(f"Single school mode: {school_doc['name']} ({args.school})")
-    elif args.pilot:
-        schools_to_process = select_pilot_schools(db, logger)
-        # For pilot, also remove already-processed schools
-        schools_to_process = [s for s in schools_to_process if s["_id"] not in already_processed]
-        logger.info(f"Pilot mode: {len(schools_to_process)} schools to process.")
-    else:
-        # Full batch — all schools, skip already-processed
-        all_schools = list(db.schools.find({}, {
-            "_id": 1, "name": 1, "district": 1, "address": 1,
-            "school_type": 1, "derived.performance_flag_absent_reason": 1
-        }))
-        schools_to_process = [s for s in all_schools if s["_id"] not in already_processed]
-        logger.info(f"Full batch mode: {len(schools_to_process)} schools to process "
-                    f"({len(already_processed)} already done, {doc_count} total).")
+    # ================================================================
+    # DISTRICT PASS
+    # ================================================================
+    if pass_type == "district":
+        # Select districts to process
+        if args.single_district:
+            districts = [args.single_district]
+            logger.info(f"Single district mode: {args.single_district}")
+        elif args.pilot:
+            districts = select_pilot_districts(db, logger)
+            districts = [d for d in districts if d not in already_processed]
+            logger.info(f"Pilot mode: {len(districts)} districts to process.")
+        else:
+            all_districts = sorted(db.schools.distinct("district.name"))
+            districts = [d for d in all_districts if d not in already_processed]
+            logger.info(f"Full batch mode: {len(districts)} districts to process "
+                        f"({len(already_processed)} already done, {len(all_districts)} total).")
 
-    if not schools_to_process:
-        logger.info("No schools to process. All done or empty selection.")
-        return
+        if not districts:
+            logger.info("No districts to process.")
+            mongo_client.close()
+            return
 
-    # Process schools
-    results = []
-    start_time = time.monotonic()
-    total = len(schools_to_process)
+        results = []
+        start_time = time.monotonic()
+        total = len(districts)
 
-    for i, school in enumerate(schools_to_process, 1):
-        ncessch = school["_id"]
-        school_name = school.get("name", "Unknown")
-        district_name = school.get("district", {}).get("name", "Unknown")
-        school_start = time.monotonic()
+        for i, district_name in enumerate(districts, 1):
+            district_start = time.monotonic()
+            school_count = db.schools.count_documents({"district.name": district_name})
 
-        try:
-            status, findings_count, cost = process_school(
-                school, api_client, enrichment_template, validation_template,
-                rate_limiter, db, logger
-            )
+            try:
+                status, findings_count, cost, schools_updated = process_district(
+                    district_name, api_client, enrichment_template, validation_template,
+                    rate_limiter, db, logger
+                )
 
-            elapsed = time.monotonic() - school_start
-            cost_input = cost.get("total_input_tokens", 0)
-            cost_output = cost.get("total_output_tokens", 0)
-            cost_usd = (cost_input * 0.80 + cost_output * 4.00) / 1_000_000
-            web_searches = cost.get("web_search_requests", 0)
+                elapsed = time.monotonic() - district_start
+                cost_usd = (cost.get("total_input_tokens", 0) * 0.80 +
+                            cost.get("total_output_tokens", 0) * 4.00) / 1_000_000
 
-            logger.info(
-                f"School {i}/{total}: {school_name} ({ncessch}). "
-                f"{status}, {findings_count} findings, "
-                f"{web_searches} web searches, ${cost_usd:.4f}, {elapsed:.1f}s."
-            )
+                logger.info(
+                    f"District {i}/{total}: {district_name} ({school_count} schools). "
+                    f"{status}, {findings_count} findings, "
+                    f"{cost.get('web_search_requests', 0)} web searches, "
+                    f"${cost_usd:.4f}, {elapsed:.1f}s."
+                )
 
-            write_checkpoint(ncessch, status, findings_count)
-
-            # Collect results for pilot report
-            # For the pilot report, we need the full context back from MongoDB
-            if args.pilot or args.school:
-                context_doc = db.schools.find_one({"_id": ncessch}, {"context": 1})
-                context = context_doc.get("context", {}) if context_doc else {}
-                results.append({
-                    "ncessch": ncessch,
-                    "name": school_name,
-                    "district": district_name,
+                write_checkpoint(checkpoint_path, {
+                    "district_name": district_name,
                     "status": status,
                     "findings_count": findings_count,
-                    "findings": context.get("findings", []),
-                    "cost": cost,
-                    "validation_summary": context.get("validation_summary"),
+                    "schools_updated": schools_updated,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
 
-        except Exception as e:
-            elapsed = time.monotonic() - school_start
-            error_msg = str(e)
-            logger.error(
-                f"School {i}/{total}: {school_name} ({ncessch}). "
-                f"FAILED after {elapsed:.1f}s: {error_msg}"
-            )
+                if args.pilot or args.single_district:
+                    # Read back from MongoDB for the report
+                    sample = db.schools.find_one(
+                        {"district.name": district_name},
+                        {"district_context": 1}
+                    )
+                    ctx = sample.get("district_context", {}) if sample else {}
+                    results.append({
+                        "district_name": district_name,
+                        "status": status,
+                        "findings_count": findings_count,
+                        "findings": ctx.get("findings", []),
+                        "cost": cost,
+                        "validation_summary": ctx.get("validation_summary"),
+                        "schools_updated": schools_updated,
+                    })
 
-            # Write failed context to MongoDB
-            failed_context = build_failed_context(error_msg, {}, None)
-            write_to_mongo(db, ncessch, failed_context)
-            write_checkpoint(ncessch, "failed", 0, error=error_msg)
-
-            if args.pilot or args.school:
-                results.append({
-                    "ncessch": ncessch,
-                    "name": school_name,
-                    "district": district_name,
+            except Exception as e:
+                elapsed = time.monotonic() - district_start
+                error_msg = str(e)
+                logger.error(
+                    f"District {i}/{total}: {district_name}. "
+                    f"FAILED after {elapsed:.1f}s: {error_msg}"
+                )
+                write_checkpoint(checkpoint_path, {
+                    "district_name": district_name,
                     "status": "failed",
                     "findings_count": 0,
-                    "findings": [],
-                    "cost": {"total_input_tokens": 0, "total_output_tokens": 0,
-                             "web_search_requests": 0, "actual_model": "N/A"},
-                    "validation_summary": None,
+                    "schools_updated": 0,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "error": error_msg,
                 })
 
-    # Summary
-    total_elapsed = time.monotonic() - start_time
-    elapsed_str = f"{total_elapsed / 3600:.1f}h" if total_elapsed > 3600 else f"{total_elapsed / 60:.1f}m"
-    logger.info("")
-    logger.info("=" * 70)
-    logger.info(f"Batch complete. {total} schools processed in {elapsed_str}.")
+                if args.pilot or args.single_district:
+                    results.append({
+                        "district_name": district_name,
+                        "status": "failed",
+                        "findings_count": 0,
+                        "findings": [],
+                        "cost": {"total_input_tokens": 0, "total_output_tokens": 0,
+                                 "web_search_requests": 0, "actual_model": "N/A"},
+                        "validation_summary": None,
+                        "schools_updated": 0,
+                    })
 
-    status_counts = Counter(r["status"] for r in results) if results else Counter()
-    for s, c in status_counts.most_common():
-        logger.info(f"  {s}: {c}")
-    logger.info("=" * 70)
+        # Summary
+        total_elapsed = time.monotonic() - start_time
+        elapsed_str = f"{total_elapsed / 3600:.1f}h" if total_elapsed > 3600 else f"{total_elapsed / 60:.1f}m"
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info(f"District pass complete. {total} districts processed in {elapsed_str}.")
+        if results:
+            status_counts = Counter(r["status"] for r in results)
+            for s, c in status_counts.most_common():
+                logger.info(f"  {s}: {c}")
+        logger.info("=" * 70)
 
-    # Generate pilot report if in pilot mode
-    if args.pilot and results:
-        report_path = generate_pilot_report(results, logger)
-        logger.info(f"Pilot report: {report_path}")
-        logger.info("Full batch does NOT run until builder reviews and approves the pilot report.")
+        if args.pilot and results:
+            all_districts_count = len(db.schools.distinct("district.name"))
+            generate_pilot_report(results, "district", all_districts_count, logger)
+            logger.info("Full batch does NOT run until builder reviews and approves the pilot report.")
+
+    # ================================================================
+    # SCHOOL PASS
+    # ================================================================
+    elif pass_type == "school":
+        # Select schools to process
+        if args.single_school:
+            school_doc = db.schools.find_one({"_id": args.single_school})
+            if not school_doc:
+                logger.error(f"School {args.single_school} not found in MongoDB.")
+                sys.exit(1)
+            schools_to_process = [school_doc]
+            logger.info(f"Single school mode: {school_doc['name']} ({args.single_school})")
+        elif args.pilot:
+            schools_to_process = select_pilot_schools(db, logger)
+            schools_to_process = [s for s in schools_to_process if s["_id"] not in already_processed]
+            logger.info(f"Pilot mode: {len(schools_to_process)} schools to process.")
+        else:
+            all_schools = list(db.schools.find({}, {
+                "_id": 1, "name": 1, "district": 1, "address": 1,
+                "school_type": 1, "derived.performance_flag_absent_reason": 1
+            }))
+            schools_to_process = [s for s in all_schools if s["_id"] not in already_processed]
+            logger.info(f"Full batch mode: {len(schools_to_process)} schools to process "
+                        f"({len(already_processed)} already done, {doc_count} total).")
+
+        if not schools_to_process:
+            logger.info("No schools to process.")
+            mongo_client.close()
+            return
+
+        results = []
+        start_time = time.monotonic()
+        total = len(schools_to_process)
+
+        for i, school in enumerate(schools_to_process, 1):
+            ncessch = school["_id"]
+            school_name = school.get("name", "Unknown")
+            district_name = school.get("district", {}).get("name", "Unknown")
+            school_start = time.monotonic()
+
+            try:
+                status, findings_count, cost = process_school(
+                    school, api_client, enrichment_template, validation_template,
+                    rate_limiter, db, logger
+                )
+
+                elapsed = time.monotonic() - school_start
+                cost_usd = (cost.get("total_input_tokens", 0) * 0.80 +
+                            cost.get("total_output_tokens", 0) * 4.00) / 1_000_000
+
+                logger.info(
+                    f"School {i}/{total}: {school_name} ({ncessch}). "
+                    f"{status}, {findings_count} findings, "
+                    f"{cost.get('web_search_requests', 0)} web searches, "
+                    f"${cost_usd:.4f}, {elapsed:.1f}s."
+                )
+
+                write_checkpoint(checkpoint_path, {
+                    "ncessch": ncessch,
+                    "status": status,
+                    "findings_count": findings_count,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+
+                if args.pilot or args.single_school:
+                    context_doc = db.schools.find_one({"_id": ncessch}, {"context": 1})
+                    ctx = context_doc.get("context", {}) if context_doc else {}
+                    results.append({
+                        "ncessch": ncessch,
+                        "name": school_name,
+                        "district": district_name,
+                        "status": status,
+                        "findings_count": findings_count,
+                        "findings": ctx.get("findings", []),
+                        "cost": cost,
+                        "validation_summary": ctx.get("validation_summary"),
+                    })
+
+            except Exception as e:
+                elapsed = time.monotonic() - school_start
+                error_msg = str(e)
+                logger.error(
+                    f"School {i}/{total}: {school_name} ({ncessch}). "
+                    f"FAILED after {elapsed:.1f}s: {error_msg}"
+                )
+
+                failed_cost = {"total_input_tokens": 0, "total_output_tokens": 0,
+                               "web_search_requests": 0, "actual_model": "N/A"}
+                failed_doc = build_context_doc("failed", [], None, failed_cost, error=error_msg)
+                db.schools.update_one({"_id": ncessch}, {"$set": {"context": failed_doc}})
+
+                write_checkpoint(checkpoint_path, {
+                    "ncessch": ncessch,
+                    "status": "failed",
+                    "findings_count": 0,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "error": error_msg,
+                })
+
+                if args.pilot or args.single_school:
+                    results.append({
+                        "ncessch": ncessch,
+                        "name": school_name,
+                        "district": district_name,
+                        "status": "failed",
+                        "findings_count": 0,
+                        "findings": [],
+                        "cost": failed_cost,
+                        "validation_summary": None,
+                    })
+
+        # Summary
+        total_elapsed = time.monotonic() - start_time
+        elapsed_str = f"{total_elapsed / 3600:.1f}h" if total_elapsed > 3600 else f"{total_elapsed / 60:.1f}m"
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info(f"School pass complete. {total} schools processed in {elapsed_str}.")
+        if results:
+            status_counts = Counter(r["status"] for r in results)
+            for s, c in status_counts.most_common():
+                logger.info(f"  {s}: {c}")
+        logger.info("=" * 70)
+
+        if args.pilot and results:
+            generate_pilot_report(results, "school", doc_count, logger)
+            logger.info("Full batch does NOT run until builder reviews and approves the pilot report.")
 
     mongo_client.close()
 

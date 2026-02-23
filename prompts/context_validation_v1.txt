@@ -15,7 +15,7 @@ State: {state}
 
 For EACH finding, evaluate:
 
-1. **Right school?** Does this finding actually refer to {school_name} in {district_name}, {city}, {state}? Or could it be about a different school with a similar name, a different district, or a different state? If the finding is about the wrong school, reject it.
+1. **Right school?** Does this finding actually refer to {school_name} in {district_name}, {city}, Washington state? Or could it be about a different school with a similar name, a different district, or a different state (especially Washington, D.C.)? If the finding is about the wrong school, reject it.
 
 2. **Credible source?** Is the source a news outlet, government agency, official school or district page, or established organization? Sources like random blogs, forums, social media posts, or SEO-generated pages are less credible and should result in a confidence downgrade.
 

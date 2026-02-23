@@ -316,11 +316,12 @@ System instructions tell Haiku to:
 1. Search for `[school name] [district name] [city] Washington state`
 2. Look across predefined categories: awards, programs, school-specific news, leadership
 3. Reject any result that doesn't match on at least district AND city
-4. Do NOT duplicate district-level findings — those are handled separately
-5. Return structured JSON matching the context schema
-6. Include source content summaries that survive link rot
-7. Flag findings involving active investigations, lawsuits, criminal charges, or abuse as `sensitivity: "high"`
-8. Use "other" category with a subcategory string for anything that doesn't fit standard categories
+4. Return structured JSON matching the context schema
+5. Include source content summaries that survive link rot
+6. Flag findings involving active investigations, lawsuits, criminal charges, or abuse as `sensitivity: "high"`
+7. Use "other" category with a subcategory string for anything that doesn't fit standard categories
+
+Note: The two passes are independent — school-level Haiku does not see district-level findings. Some findings may appear in both layers. Deduplication is a Phase 5 presentation task handled by Sonnet, which receives both layers and presents each event once with appropriate framing.
 
 ### School Validation Prompt (Updated)
 

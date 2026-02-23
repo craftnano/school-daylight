@@ -9,7 +9,7 @@ State: {state}
 
 ## What to Search For
 
-Search for "{school_name} {district_name} {city} {state}" and look for information in these categories:
+Search for "{school_name} {district_name} {city} Washington state" and look for information in these categories:
 
 - **news**: Recent news coverage about this specific school (not district-wide unless the school is named)
 - **investigations_ocr**: OCR complaints, state investigations, federal investigations, audit findings involving this school
