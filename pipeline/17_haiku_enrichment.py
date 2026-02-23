@@ -47,8 +47,11 @@ DATABASE_NAME = "schooldaylight"
 # Cost controls from plan
 MAX_ENRICHMENT_SEARCHES = 2
 MAX_VALIDATION_SEARCHES = 1
-MAX_ENRICHMENT_TOKENS = 2000
-MAX_VALIDATION_TOKENS = 1500
+# Haiku generates intro text + tool use tokens before writing JSON.
+# 2000 was too tight — model ran out of output tokens before finishing JSON.
+# 4096 gives plenty of room. Actual output is typically ~600-800 tokens.
+MAX_ENRICHMENT_TOKENS = 4096
+MAX_VALIDATION_TOKENS = 4096
 MAX_RETRIES = 3
 RETRY_BACKOFF = [5, 15, 45]  # seconds
 
@@ -117,32 +120,38 @@ def load_prompt(path):
 
 
 def fill_enrichment_prompt(template, school):
-    """Fill the enrichment prompt template with school details."""
+    """Fill the enrichment prompt template with school details.
+
+    Uses str.replace() instead of str.format() because the prompt templates
+    contain JSON examples with curly braces that would break .format().
+    """
     district_name = school.get("district", {}).get("name", "Unknown District")
     city = school.get("address", {}).get("city", "Unknown City")
     state = school.get("address", {}).get("state", "WA")
 
-    return template.format(
-        school_name=school["name"],
-        district_name=district_name,
-        city=city,
-        state=state
-    )
+    result = template.replace("{school_name}", school["name"])
+    result = result.replace("{district_name}", district_name)
+    result = result.replace("{city}", city)
+    result = result.replace("{state}", state)
+    return result
 
 
 def fill_validation_prompt(template, school, findings_json):
-    """Fill the validation prompt template with school details and findings."""
+    """Fill the validation prompt template with school details and findings.
+
+    Uses str.replace() instead of str.format() because the prompt templates
+    contain JSON examples with curly braces that would break .format().
+    """
     district_name = school.get("district", {}).get("name", "Unknown District")
     city = school.get("address", {}).get("city", "Unknown City")
     state = school.get("address", {}).get("state", "WA")
 
-    return template.format(
-        school_name=school["name"],
-        district_name=district_name,
-        city=city,
-        state=state,
-        findings_json=findings_json
-    )
+    result = template.replace("{school_name}", school["name"])
+    result = result.replace("{district_name}", district_name)
+    result = result.replace("{city}", city)
+    result = result.replace("{state}", state)
+    result = result.replace("{findings_json}", findings_json)
+    return result
 
 
 # ============================================================================
@@ -150,28 +159,43 @@ def fill_validation_prompt(template, school, findings_json):
 # ============================================================================
 
 def extract_json(text):
-    """Parse JSON from Haiku's response, stripping markdown fences if present.
+    """Parse JSON from Haiku's response, handling multiple formats.
 
-    Haiku is instructed to return raw JSON, but sometimes wraps it in
-    ```json ... ``` blocks anyway. This handles both cases.
+    Haiku sometimes returns:
+    1. Raw JSON (ideal)
+    2. JSON wrapped in ```json ... ``` fences
+    3. Prose text followed by a ```json ... ``` block
+    This function handles all three cases.
     """
     if text is None:
         return None
 
     text = text.strip()
 
-    # Strip markdown code fences if present
-    if text.startswith("```"):
-        # Remove opening fence (```json or just ```)
-        text = re.sub(r"^```(?:json)?\s*\n?", "", text)
-        # Remove closing fence
-        text = re.sub(r"\n?```\s*$", "", text)
-        text = text.strip()
+    # Case 1: text starts with { — try direct parse
+    if text.startswith("{"):
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
 
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        return None
+    # Case 2/3: look for a ```json ... ``` block anywhere in the text
+    fence_match = re.search(r"```(?:json)?\s*\n(.*?)\n```", text, re.DOTALL)
+    if fence_match:
+        try:
+            return json.loads(fence_match.group(1).strip())
+        except json.JSONDecodeError:
+            pass
+
+    # Case 4: look for a JSON object anywhere in the text (starts with {, ends with })
+    brace_match = re.search(r"\{.*\}", text, re.DOTALL)
+    if brace_match:
+        try:
+            return json.loads(brace_match.group(0))
+        except json.JSONDecodeError:
+            pass
+
+    return None
 
 
 # ============================================================================
