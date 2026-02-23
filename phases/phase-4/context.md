@@ -29,10 +29,7 @@
 - Name: Fairhaven Middle School
 - District: Bellingham
 - City: Bellingham, WA
-- **Known facts to verify:**
-  - Bellingham district assault case
-  - Administrator criminal charges
-  - These should appear in enrichment findings
+- **Golden school gate:** Builder reviews all returned findings against known local reality. No specific incidents pre-specified as pass/fail criteria.
 
 ## Document Structure (Top-Level Keys)
 

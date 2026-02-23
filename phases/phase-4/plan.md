@@ -48,7 +48,8 @@ context: {
         validation_output_tokens: int,
         web_search_requests: int,
         total_input_tokens: int,
-        total_output_tokens: int
+        total_output_tokens: int,
+        actual_model: str  # Model string from API response header — hallucination safeguard to verify every call went to Haiku
     },
     findings: [
         {
@@ -188,7 +189,7 @@ Saved as `phases/phase-4/pilot_report.md`:
 - All "other" category findings (for human review of category fit)
 - All "sensitivity: high" findings (for human review)
 - All validation rejections (for prompt quality assessment)
-- Fairhaven findings vs. known facts
+- Fairhaven findings (full list for builder review against known local reality)
 - Schools with zero findings (expected for rural?)
 - Any errors or failed schools
 
@@ -266,14 +267,14 @@ Batch complete. 2,532 schools processed in 11h 42m.
 ## Testing and Verification
 
 ### During Pilot
-1. Fairhaven must surface the Bellingham assault case / administrator criminal charges
+1. Fairhaven: run through enrichment and validation. Builder will review all returned findings against known local reality. Haiku should surface real, verifiable findings — the builder will judge whether the results are credible and complete. No specific incidents are pre-specified as pass/fail criteria.
 2. At least some Seattle schools should have news findings
 3. Rural schools may legitimately have zero findings — that's OK
 4. No hallucinated findings (validation should catch these)
 5. All source URLs should be real (spot-check manually)
 
 ### After Full Batch
-1. Fairhaven golden school verification (field-by-field)
+1. Fairhaven golden school check: builder reviews all findings against known local reality for credibility and completeness
 2. Distribution summary: how many enriched, no findings, failed
 3. Sensitivity findings count for human review queue
 4. "Other" findings count for human review queue
