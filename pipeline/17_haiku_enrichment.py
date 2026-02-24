@@ -1062,6 +1062,10 @@ def main():
         help="Run district enrichment for a single district by name (district pass only)."
     )
     parser.add_argument(
+        "--min-district-size", dest="min_district_size", type=int, default=None,
+        help="School pass only: only process schools in districts with more than N schools."
+    )
+    parser.add_argument(
         "--reset", action="store_true",
         help="Clear checkpoint file for this pass and start fresh."
     )
@@ -1267,13 +1271,25 @@ def main():
             schools_to_process = [s for s in schools_to_process if s["_id"] not in already_processed]
             logger.info(f"Pilot mode: {len(schools_to_process)} schools to process.")
         else:
-            all_schools = list(db.schools.find({}, {
+            # Optional filter: only schools in districts above a size threshold
+            if args.min_district_size:
+                big_districts = [d["_id"] for d in db.schools.aggregate([
+                    {"$group": {"_id": "$district.name", "count": {"$sum": 1}}},
+                    {"$match": {"count": {"$gt": args.min_district_size}}},
+                ])]
+                query = {"district.name": {"$in": big_districts}}
+                logger.info(f"District size filter: >{args.min_district_size} schools → "
+                            f"{len(big_districts)} qualifying districts.")
+            else:
+                query = {}
+
+            all_schools = list(db.schools.find(query, {
                 "_id": 1, "name": 1, "district": 1, "address": 1,
                 "school_type": 1, "derived.performance_flag_absent_reason": 1
             }))
             schools_to_process = [s for s in all_schools if s["_id"] not in already_processed]
             logger.info(f"Full batch mode: {len(schools_to_process)} schools to process "
-                        f"({len(already_processed)} already done, {doc_count} total).")
+                        f"({len(already_processed)} already done, {len(all_schools)} eligible).")
 
         if not schools_to_process:
             logger.info("No schools to process.")

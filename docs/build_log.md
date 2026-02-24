@@ -56,3 +56,94 @@ Discipline disparity small-N analysis. 29 of 65 schools with 10x+ ratios have fe
 ## 2026-02-22 — Chronic absenteeism threshold audit
 
 Chronic absenteeism threshold audit. 64% of schools trip yellow or red at current 20%/30% thresholds — flag is miscalibrated for post-COVID distribution. Decision: raise thresholds to approximately 30%/45% before Phase 5. Exact values TBD after reviewing adjusted distribution. Requires Phase 3 rerun. Does not affect Phase 4.
+
+---
+
+## 2026-02-23 — Phase 4 complete: Haiku Context Enrichment
+
+### Two-pass design
+
+Phase 4 uses a two-pass architecture for web search context enrichment:
+
+- **Pass 1 (District):** 330 districts searched for investigations, lawsuits, leadership changes, bonds/levies, and awards. Results written to `district_context` field on all schools in each district.
+- **Pass 2 (School):** 1,185 schools (in 32 districts with >18 schools) searched for school-specific news, awards, programs, and incidents. Results written to `context` field on each school.
+
+The two passes are independent. School-level Haiku does not see district-level findings. Deduplication is Phase 5's (Sonnet narrative) responsibility.
+
+### Final numbers
+
+| Metric | District Pass | School Pass | Total |
+|---|---|---|---|
+| Entities processed | 330 | 1,185 | — |
+| Enriched (has findings) | 234 (70.9%) | 779 (65.7%) | — |
+| No findings | 96 (29.1%) | 406 (34.3%) | — |
+| Failed | 0 | 0 | 0 |
+| Total findings | 755 | 1,320 | 2,075 |
+| High-sensitivity findings | 291 | 149 | 440 |
+| Cost | $11.88 | $43.47 | **$55.34** |
+| MongoDB coverage | 2,532/2,532 | 1,185/2,532 | — |
+
+### Sensitivity review
+
+442 high-sensitivity findings exported to `phases/phase-4/sensitivity_review.md` for manual review. Builder reviewed findings for:
+
+- Death/violence keywords (31 matches, 25 correctly flagged HIGH)
+- Non-institutional subjects — board candidates, former students, community members (27 matches)
+- Immigration/ICE-related content (8 matches)
+- Sexual violence content (78 matches, 63 naming individuals)
+
+**Findings removed during review (9 total):**
+1. Beverly Elementary — student death, no institutional connection
+2. Blaine SD — board candidate personal criminal charges, private citizen
+3. South Pines Elementary — nearby shooting before dawn, no school connection
+4. Coupeville SD (2 findings) — superintendent investigation, cleared/exonerated
+5. Liberty Sr High — individual student conduct (racist video)
+6. Issaquah High School — routine discipline incident
+7. Cashmere SD — duplicate finding (610 KONA source removed, Cascade PBS kept)
+8. Cascade HS / Everett — dismissed lawsuit about 2003 conduct
+
+**ICE-related findings removed (6 total, prior to sensitivity review):**
+Student political walkouts and protest activity at Auburn HS, Meadowdale MS, Edmonds-Woodway HS, Highline SD/Sylvester MS, Aki Kurose MS (shelter-in-place), Denny MS (false alarm). Kept: Cowlitz County/ICE contract termination (institutional action) and Wahluke SD migrant program funding (budget fact).
+
+### Model and validation
+
+- All calls confirmed as `claude-haiku-4-5-20251001` via `actual_model` hallucination safeguard
+- Validation pass (second Haiku call) checked every finding for wrong-school contamination, source credibility, and claim support
+- "Washington state" used in all search queries to avoid D.C. contamination
+
+### Phase 4.5 — Sonnet Editorial Rule Testing (unplanned addition)
+
+An unplanned Phase 4.5 has been added between Phase 4 and Phase 5. Phase 4.5 tests Sonnet's ability to apply editorial rules (name stripping, recency filtering, sensitivity handling, deduplication) before full narrative generation begins. This phase has its own plan and Claude Code session. See `phases/phase-4.5/` for details.
+
+---
+
+## 2026-02-23 — Decision: District-level enrichment pass added
+
+**Context:** Initial Phase 4 pilot (25 schools, school-name-only search) revealed that school-level web searches do not surface district-level events. Fairhaven Middle School returned only a U.S. News recognition — none of the Bellingham School District's well-documented investigations, lawsuits, or criminal charges appeared.
+
+**Decision:** Add a district-level enrichment pass that runs before the school-level pass. ~330 districts searched for "investigations lawsuits scandals leadership changes." Results stored in `district_context` field on all schools in each district.
+
+**Rationale:** District-level events (superintendent actions, board decisions, OCR investigations, lawsuit settlements) are critical context for understanding any school in that district. A school briefing without district context is incomplete. Two independent passes with Phase 5 deduplication is simpler and more robust than trying to merge concerns in a single search.
+
+---
+
+## 2026-02-23 — Decision: "Washington state" disambiguation fix
+
+**Context:** Search queries using `"{state}"` (which resolves to "WA" or "Washington") risk returning results about Washington, D.C. schools and districts. Multiple same-name districts exist in WA and D.C.
+
+**Decision:** All search prompts now use the literal string "Washington state" instead of the state variable. Applied to all four prompt files (district enrichment, district validation, school enrichment, school validation).
+
+---
+
+## 2026-02-23 — Decision: School pass limited to districts with >18 schools
+
+**Context:** Full school-level enrichment of all 2,532 schools would cost ~$86 and take ~21 hours. Many small/rural districts have 1-3 schools that are unlikely to surface school-specific web results (district-level pass already covers them). Need to balance cost and coverage.
+
+**Decision:** School pass limited to the 32 districts with more than 18 schools (1,174 schools, 46.3% of dataset). This covers all major urban, suburban, and mid-size districts where school-specific context is most likely to exist and most useful. Small/rural schools still have district-level context from Pass 1.
+
+**Alternatives considered:**
+- All 2,532 schools (~$86, ~21h) — excessive for diminishing returns on small schools
+- Districts with >15 schools (42 districts, 1,345 schools, ~$46, ~11h) — reasonable but slightly over budget comfort
+- Districts with >10 schools (70 districts, 1,684 schools, ~$57, ~14h) — too many hours for marginal gain
+
+**Trade-off:** 1,358 schools in smaller districts do not have school-level context. They still have district-level context. This is acceptable for v1.
