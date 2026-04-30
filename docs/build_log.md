@@ -147,3 +147,37 @@ An unplanned Phase 4.5 has been added between Phase 4 and Phase 5. Phase 4.5 tes
 - Districts with >10 schools (70 districts, 1,684 schools, ~$57, ~14h) — too many hours for marginal gain
 
 **Trade-off:** 1,358 schools in smaller districts do not have school-level context. They still have district-level context. This is acceptable for v1.
+
+---
+
+## 2026-02-23 — Conduct-Date Anchor and Dismissed Case rule added to recency policy (Rule 5)
+
+**Decision 1 — Conduct-Date Anchor:** When a recent institutional response addresses conduct more than 20 years old, exclude the finding unless it is part of a pattern with at least one same-type finding involving conduct within the last 20 years.
+
+**Trigger:** Bainbridge Island 2024 lawsuit about 1980s teacher abuse and Franklin Pierce 2019 settlement for 36-year-old abuse both passed the 10-year institutional response window but describe conduct too old to be actionable for current parents.
+
+**Effect:** Bainbridge 1980s abuse finding excluded. Franklin Pierce settlement excluded. Bethel 2016+2025 and Juanita 2015 unaffected.
+
+**Decision 2 — Dismissed Cases:** Dismissed, withdrawn, or resolved-without-adverse-finding cases use the 5-year window. Pattern exception does not apply to dismissed cases.
+
+**Trigger:** Cascade HS/Everett 2018 dismissed lawsuit about 2003 conduct was incorrectly included. Dismissal is 8 years old (outside 5yr window) and dismissed cases cannot anchor a pattern.
+
+**Effect:** Cascade HS dismissed lawsuit excluded.
+
+---
+
+## 2026-04-29 — District vs. building-specific attribution rule adopted
+
+District-level vs. building-specific attribution rule adopted. District-level institutional accountability findings (lawsuits, settlements, investigations against the district) appear on all schools in the district with district-level framing. Building-specific incidents appear only on the relevant school. Triggered by inconsistent Sonnet behavior across Bainbridge schools in Round 1 testing — some elementary schools received district findings, others did not. Rule eliminates model discretion on this question.
+
+---
+
+## 2026-04-29 — Phase 4 Pass 2 scope expanded to 10-17 school band
+
+Expanded school-level enrichment scope from >18 schools (1,174 schools, 32 districts) to >9 schools (1,630 schools, 67 districts). Added 456 schools across 35 districts in the 10-17 school band.
+
+**Run details:** 453 schools processed (3 of the 456 had been enriched earlier via one-off runs and were skipped via checkpoint). Run via `pipeline/17_haiku_enrichment.py --pass school --min-district-size 9 --max-district-size 17`. Wall-clock: 2.4 hours. 259 schools enriched with at least one finding, 194 returned no findings, 0 failures. 392 total findings produced. 1,132 web searches executed.
+
+**Cost:** $15.23 in Haiku tokens + $11.32 in web search fees = **$26.55 total** for the 453-school batch.
+
+**Script change:** Added `--max-district-size N` flag to `pipeline/17_haiku_enrichment.py` so the size filter accepts a band (`>min AND <=max`). Existing `--min-district-size` semantics unchanged. The 32 districts with >18 schools previously enriched were skipped via the existing checkpoint mechanism in `data/enrichment_checkpoint.jsonl`.

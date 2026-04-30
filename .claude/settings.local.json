@@ -12,7 +12,16 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(pip3 install openpyxl==3.1.2)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(pip3 install:*)",
+      "Bash(grep:*)",
+      "Bash(pip install scikit-learn==1.6.1)",
+      "Bash(find:*)",
+      "Bash(done)",
+      "Bash(git revert:*)",
+      "Bash(python pipeline/17_haiku_enrichment.py:*)",
+      "Bash(kill:*)",
+      "Bash(git *)"
     ]
   }
 }

@@ -1,0 +1,111 @@
+# Phase 4.5 — Sonnet Editorial Rule Test Configuration
+# Round 1 / Round 3 — Full 50-school set (restored from targeted retest)
+# Used by the three-stage pipeline (Stage 0 pre-filter → Stage 1 Haiku triage → Stage 2 Sonnet 4.6).
+# School roster + test assignments reconstructed from
+#   phases/phase-4.5/test_results/test_run_2026-02-23_224243.md
+# A backup of the prior 6-school targeted retest is at
+#   tests/sonnet_test_config.targeted_6school.yaml.bak
+
+targeted_retest: false
+
+# Test 10 is a data-layer contamination check, not a Sonnet test.
+data_checks:
+  east_valley_yakima: "530537000805"
+
+# Death/suicide keyword scan was used in Round 1 to find additional Test 1 candidates
+# at runtime. For the three-stage replay we drive entirely from the static list below
+# (cached findings only) — the keyword scan is preserved for reference and for the
+# legacy single-stage harness, but the new runner does not consult it.
+death_keywords:
+  - suicide
+  - death
+  - died
+  - killed
+  - fatal
+  - drowning
+  - shooting
+  - deceased
+  - tragedy
+  - memorial
+  - passed away
+  - overdose
+  - homicide
+
+# 50 unique schools, each tagged with the test numbers it exercises in the Round 1 plan.
+# Test 7 (Student Name Suppression) applies to every school — it is included on each row.
+schools:
+  # ----- Test 1: Death/Suicide Suppression (20 schools) -----
+  - { nces_id: "530240000330", name: "Beverly Elementary",                       tests: [1, 7] }
+  - { nces_id: "530033000043", name: "Bainbridge High School",                   tests: [1, 7, 11] }
+  - { nces_id: "530270000412", name: "Legacy High School",                       tests: [1, 7] }
+  - { nces_id: "530033000044", name: "Halilts Elementary School",                tests: [1, 7] }
+  - { nces_id: "530033000045", name: "Capt Johnston Blakely Elem Sch",           tests: [1, 7] }
+  - { nces_id: "530033000047", name: "Ordway Elementary",                        tests: [1, 7] }
+  - { nces_id: "530033002452", name: "Woodward Middle School",                   tests: [1, 7] }
+  - { nces_id: "530033002523", name: "Odyssey Multiage Program",                 tests: [1, 7] }
+  - { nces_id: "530033002734", name: "Sonoji Sakai Intermediate",                tests: [1, 7] }
+  - { nces_id: "530033002802", name: "Mosaic Home Education Partnership",        tests: [1, 7] }
+  - { nces_id: "530033003110", name: "Eagle Harbor High School",                 tests: [1, 7] }
+  - { nces_id: "530033003113", name: "Bainbridge Special Education Services",    tests: [1, 7] }
+  - { nces_id: "530038000049", name: "Battle Ground High School",                tests: [1, 7] }
+  - { nces_id: "530039000072", name: "Interlake Senior High School",             tests: [1, 7] }
+  - { nces_id: "530042001739", name: "Kulshan Middle School",                    tests: [1, 7] }
+  - { nces_id: "530240000332", name: "Brier Terrace Middle School",              tests: [1, 7] }
+  - { nces_id: "530270000413", name: "Burton Elementary School",                 tests: [1, 7] }
+  - { nces_id: "530270000414", name: "Cascade Middle School",                    tests: [1, 7] }
+  - { nces_id: "530270000415", name: "Covington Middle School",                  tests: [1, 7] }
+  - { nces_id: "530270000416", name: "Crestline Elementary School",              tests: [1, 7] }
+
+  # ----- Test 2: Name Stripping + Pattern Detection -----
+  - { nces_id: "530039000082", name: "Phantom Lake Elementary",                  tests: [2, 7] }
+  - { nces_id: "530042000098", name: "Alderwood Elementary School",              tests: [2, 7, 8] }
+  - { nces_id: "530114000205", name: "Centralia Middle School",                  tests: [2, 7, 8] }
+  - { nces_id: "530381000584", name: "Kalama Elem School",                       tests: [2, 7, 12] }
+
+  # ----- Test 3: Private Citizen Exclusion -----
+  - { nces_id: "530057000130", name: "Blaine Elementary School",                 tests: [3, 7, 11] }
+  - { nces_id: "530594000898", name: "Broad View Elementary",                    tests: [3, 7] }
+
+  # ----- Test 4: Exoneration Handling -----
+  - { nces_id: "530807001334", name: "Soap Lake Elementary",                     tests: [4, 7] }
+  - { nces_id: "530048001821", name: "Spanaway Lake High School",                tests: [4, 7] }
+
+  # ----- Test 5: Date-First Formatting -----
+  - { nces_id: "530198000300", name: "Darrington Elementary School",             tests: [5, 7] }
+  - { nces_id: "530771002347", name: "Thurgood Marshall Elementary",             tests: [5, 7] }
+  - { nces_id: "530771002933", name: "South Shore PK-8 School",                  tests: [5, 7] }
+  - { nces_id: "530543002128", name: "Challenger Elementary",                    tests: [5, 7] }
+  - { nces_id: "530927001562", name: "Gaiser Middle School",                     tests: [5, 7] }
+  - { nces_id: "530282000443", name: "Mirror Lake Elementary School",            tests: [5, 7] }
+
+  # ----- Test 6: Politically Sensitive Neutrality -----
+  - { nces_id: "530123000223", name: "Cheney High School",                       tests: [6, 7] }
+  - { nces_id: "530228000312", name: "East Valley High School",                  tests: [6, 7] }
+  - { nces_id: "530399000637", name: "Kettle Falls Elementary School",           tests: [6, 7] }
+
+  # ----- Test 7-only (Student Name Suppression universal — Newport is the lone Test-7-only school) -----
+  - { nces_id: "530039000078", name: "Newport Senior High School",               tests: [7] }
+
+  # ----- Test 8: Duplicate / Same-Saga Consolidation -----
+  - { nces_id: "530099000171", name: "Castle Rock Elementary",                   tests: [7, 8] }
+
+  # ----- Test 9: Geographic Proximity != Relevance -----
+  - { nces_id: "530111000201", name: "South Pines Elementary",                   tests: [7, 9] }
+  - { nces_id: "530282002964", name: "Sequoyah Middle School",                   tests: [7, 9] }
+
+  # ----- Test 11: Recency Policy -----
+  - { nces_id: "530267000391", name: "Cascade High School (Everett)",            tests: [7, 11] }
+  - { nces_id: "530048000119", name: "Bethel High School",                       tests: [7, 11] }
+  - { nces_id: "530294000470", name: "Brookdale Elementary",                     tests: [7, 11] }
+  - { nces_id: "530423000670", name: "Juanita High School",                      tests: [7, 11] }
+
+  # ----- Test 12: Parent Relevance Filter -----
+  - { nces_id: "530285000457", name: "Beach Elem",                               tests: [7, 12, 13] }
+  - { nces_id: "530006000012", name: "Adna Elementary School",                   tests: [7, 12] }
+  - { nces_id: "530066000135", name: "Armin Jahr Elementary",                    tests: [7, 12] }
+
+  # ----- Test 13: Community Action — Source Quality -----
+  - { nces_id: "530375000579", name: "Maywood Middle School",                    tests: [7, 13] }
+
+  # ----- Test 14: Excluded Schools Still Get Findings -----
+  - { nces_id: "530375001773", name: "Echo Glen School",                         tests: [7, 14] }

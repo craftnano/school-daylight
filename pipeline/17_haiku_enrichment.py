@@ -1066,6 +1066,12 @@ def main():
         help="School pass only: only process schools in districts with more than N schools."
     )
     parser.add_argument(
+        "--max-district-size", dest="max_district_size", type=int, default=None,
+        help="School pass only: only process schools in districts with N or fewer schools. "
+             "Combine with --min-district-size to target a specific size band (e.g., "
+             "--min-district-size 9 --max-district-size 17 selects the 10-17 inclusive band)."
+    )
+    parser.add_argument(
         "--reset", action="store_true",
         help="Clear checkpoint file for this pass and start fresh."
     )
@@ -1271,15 +1277,24 @@ def main():
             schools_to_process = [s for s in schools_to_process if s["_id"] not in already_processed]
             logger.info(f"Pilot mode: {len(schools_to_process)} schools to process.")
         else:
-            # Optional filter: only schools in districts above a size threshold
-            if args.min_district_size:
-                big_districts = [d["_id"] for d in db.schools.aggregate([
+            # Optional filter: only schools in districts within a size band
+            # min-district-size: count > N (exclusive lower bound)
+            # max-district-size: count <= N (inclusive upper bound)
+            if args.min_district_size is not None or args.max_district_size is not None:
+                count_match = {}
+                if args.min_district_size is not None:
+                    count_match["$gt"] = args.min_district_size
+                if args.max_district_size is not None:
+                    count_match["$lte"] = args.max_district_size
+                qualifying_districts = [d["_id"] for d in db.schools.aggregate([
                     {"$group": {"_id": "$district.name", "count": {"$sum": 1}}},
-                    {"$match": {"count": {"$gt": args.min_district_size}}},
+                    {"$match": {"count": count_match}},
                 ])]
-                query = {"district.name": {"$in": big_districts}}
-                logger.info(f"District size filter: >{args.min_district_size} schools → "
-                            f"{len(big_districts)} qualifying districts.")
+                query = {"district.name": {"$in": qualifying_districts}}
+                lo = f">{args.min_district_size}" if args.min_district_size is not None else ">0"
+                hi = f"<={args.max_district_size}" if args.max_district_size is not None else "no upper bound"
+                logger.info(f"District size filter: {lo} and {hi} → "
+                            f"{len(qualifying_districts)} qualifying districts.")
             else:
                 query = {}
 

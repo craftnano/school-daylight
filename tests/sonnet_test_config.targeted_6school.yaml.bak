@@ -1,0 +1,55 @@
+# Phase 4.5 — Sonnet Editorial Rule Test Configuration
+# Round 2 — Targeted Retest (v2 prompt with Conduct-Date Anchor + Dismissed Case rules)
+# Only schools affected by v2 recency changes plus boundary controls.
+# Prompt: prompts/sonnet_layer3_prompt_test_v2.txt
+
+# Skip dynamic school resolution (keyword scan, Oak Harbor, random schools).
+# This is a targeted retest — only the schools listed below are tested.
+targeted_retest: true
+
+schools:
+  # --- EXPECT DIFFERENT RESULTS (confirm exclusion) ---
+
+  - nces_id: "530033000043"
+    name: "Bainbridge Island SD"
+    district: "Bainbridge Island SD"
+    tests: [11]
+    check_instructions:
+      11: "EXPECT EXCLUDED: Teacher abuse lawsuit from 2024 about conduct 40+ years ago. Conduct-date anchor should exclude — conduct >20 years old, no pattern with same-type conduct within 20 years."
+
+  - nces_id: "530294000470"
+    name: "Franklin Pierce SD"
+    district: "Franklin Pierce SD"
+    tests: [11]
+    check_instructions:
+      11: "EXPECT EXCLUDED: $950K settlement (2019) for abuse from 36 years prior. Conduct-date anchor should exclude — conduct >20 years old."
+
+  - nces_id: "530267000391"
+    name: "Everett SD"
+    district: "Everett SD"
+    tests: [11]
+    check_instructions:
+      11: "EXPECT EXCLUDED: Dismissed 2018 lawsuit about 2003 conduct. Dismissed-case rule — dismissal is 8 years old (outside 5yr window), and dismissed cases cannot anchor a pattern."
+
+  # --- CONTROL SCHOOLS (confirm no regression) ---
+
+  - nces_id: "530048000119"
+    name: "Bethel SD"
+    district: "Bethel SD"
+    tests: [11]
+    check_instructions:
+      11: "CONTROL — MUST STILL INCLUDE: 2016 appellate ruling + 2025 lawsuit, same failure type. Pattern exception applies — conduct within 20 years."
+
+  - nces_id: "530423000670"
+    name: "Juanita HS (Lake Washington SD)"
+    district: "Lake Washington SD"
+    tests: [11]
+    check_instructions:
+      11: "CONTROL — MUST STILL INCLUDE: 2015 football players charged with attempted rape, administrators discouraged police. Severity exception (sexual violence + institutional suppression) should keep this."
+
+  - nces_id: "530033000047"
+    name: "Ordway Elementary (Bainbridge Island SD)"
+    district: "Bainbridge Island SD"
+    tests: [11]
+    check_instructions:
+      11: "CONTROL — RECENT FINDINGS UNAFFECTED: Bainbridge school sharing district findings. Confirm recent findings (suicide settlement, etc.) still appear. Only the 1980s abuse finding should be excluded under conduct-date anchor."
