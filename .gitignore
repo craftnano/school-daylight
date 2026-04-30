@@ -4,6 +4,9 @@
 *.pem
 *.key
 
+# Claude Code local machine settings (user-specific permission allowlist, not portable)
+.claude/settings.local.json
+
 # Raw data files (2+ GB, too large for git)
 # The data dictionary and schema YAML document what's in these files.
 # Re-download from NCES/CRDC/OSPI portals if needed.
