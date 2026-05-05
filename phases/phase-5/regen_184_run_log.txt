@@ -1,0 +1,32 @@
+[2026-05-02T03:01:18.037823+00:00] === Regeneration of 184 affected schools — Stage 1 v2 + Stage 2 v3 ===
+[2026-05-02T03:01:20.385361+00:00] Re-deriving affected pool from full population scan...
+[2026-05-02T03:01:52.117442+00:00] Affected pool size: 187 schools
+[2026-05-02T03:04:33.685239+00:00]   ... 25/187 processed, haiku running $0.1325
+[2026-05-02T03:07:13.412519+00:00]   ... 50/187 processed, haiku running $0.2637
+[2026-05-02T03:09:28.788249+00:00]   ... 75/187 processed, haiku running $0.3725
+[2026-05-02T03:12:41.687451+00:00]   ... 100/187 processed, haiku running $0.5247
+[2026-05-02T03:15:22.985105+00:00]   ... 125/187 processed, haiku running $0.6644
+[2026-05-02T03:18:13.101384+00:00]   ... 150/187 processed, haiku running $0.8123
+[2026-05-02T03:21:46.574206+00:00]   ... 175/187 processed, haiku running $0.9867
+[2026-05-02T03:23:20.795858+00:00] Stage 1 v2 pass complete. Haiku spend: $1.0662
+[2026-05-02T03:23:20.847919+00:00] Submitting Stage 2 batch of 185 requests (projected sonnet $2.22)...
+[2026-05-02T03:23:24.176546+00:00] Batch ID: msgbatch_016aKDCXANFiYgxpwPavcpJb
+[2026-05-02T03:23:32.713244+00:00]   status=in_progress processing=185 succeeded=0 errored=0
+[2026-05-02T03:23:53.029629+00:00]   status=in_progress processing=185 succeeded=0 errored=0
+[2026-05-02T03:24:14.101982+00:00]   status=in_progress processing=185 succeeded=0 errored=0
+[2026-05-02T03:24:34.507590+00:00]   status=in_progress processing=185 succeeded=0 errored=0
+[2026-05-02T03:24:54.882620+00:00]   status=in_progress processing=185 succeeded=0 errored=0
+[2026-05-02T03:25:15.198159+00:00]   status=in_progress processing=185 succeeded=0 errored=0
+[2026-05-02T03:25:35.508799+00:00]   status=in_progress processing=185 succeeded=0 errored=0
+[2026-05-02T03:25:55.813866+00:00]   status=in_progress processing=185 succeeded=0 errored=0
+[2026-05-02T03:26:16.205583+00:00]   status=ended processing=0 succeeded=185 errored=0
+[2026-05-02T03:26:30.161990+00:00] 
+[2026-05-02T03:26:30.162528+00:00] === REGENERATION COMPLETE ===
+[2026-05-02T03:26:30.162604+00:00] Schools in affected pool:                187
+[2026-05-02T03:26:30.162666+00:00] Schools regenerated (Stage 2 succeeded): 185
+[2026-05-02T03:26:30.162722+00:00] Schools where Stage 1 v2 included zero:  2
+[2026-05-02T03:26:30.162777+00:00] Schools with errors:                     0
+[2026-05-02T03:26:30.162952+00:00] Regenerated narratives that now contain positive content: 93
+[2026-05-02T03:26:30.163029+00:00] Haiku cost:  $1.0662
+[2026-05-02T03:26:30.163092+00:00] Sonnet cost: $1.5340
+[2026-05-02T03:26:30.163148+00:00] TOTAL COST:  $2.6001

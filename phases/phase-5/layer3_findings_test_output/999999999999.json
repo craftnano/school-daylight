@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "nces_id": "999999999999",
+    "school_name": null,
+    "district_name": null,
+    "error": "School with NCES ID '999999999999' not found in MongoDB. Confirm the ID is the 12-character string (leading zeros preserved) and that the schools collection has been loaded for this state.",
+    "n_school": 0,
+    "n_district": 0,
+    "n_deduped": 0,
+    "dedup_collisions": []
+  },
+  "findings_count": 0,
+  "findings_preview": []
+}

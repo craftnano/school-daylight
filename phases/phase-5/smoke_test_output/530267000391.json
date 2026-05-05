@@ -1,0 +1,116 @@
+{
+  "nces_id": "530267000391",
+  "name": "Cascade High School",
+  "district_name": "Everett School District",
+  "findings_count": 7,
+  "stage0": {
+    "kept_count": 6,
+    "dropped": [
+      {
+        "finding_index": 1,
+        "rule": "DISMISSED_CASE_OUT_OF_WINDOW",
+        "extraction": {
+          "finding_index": 1,
+          "conduct_date_earliest": "2003",
+          "conduct_date_latest": null,
+          "response_date": "2018-01-10",
+          "response_type": "dismissal",
+          "finding_type_tag": "sexual_abuse_by_staff",
+          "rationale": "Lawsuit dismissed 2018-01-10; underlying abuse alleged to have begun in 2003, but no end date specified in text."
+        }
+      }
+    ],
+    "extractions": {
+      "1": {
+        "finding_index": 1,
+        "conduct_date_earliest": "2003",
+        "conduct_date_latest": null,
+        "response_date": "2018-01-10",
+        "response_type": "dismissal",
+        "finding_type_tag": "sexual_abuse_by_staff",
+        "rationale": "Lawsuit dismissed 2018-01-10; underlying abuse alleged to have begun in 2003, but no end date specified in text."
+      },
+      "2": {
+        "finding_index": 2,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2015-07-03",
+        "response_type": "investigation",
+        "finding_type_tag": "disability_discrimination",
+        "rationale": "Investigation date is 2015-07-03; text states investigation was launched in response to complaints but provides no dates for when the underlying service denial occurred."
+      },
+      "3": {
+        "finding_index": 3,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": null,
+        "response_type": "lawsuit_filing",
+        "finding_type_tag": "bullying_failure_to_protect",
+        "rationale": "Finding is undated; text describes an ongoing claim for $20 million alleging bullying and beating, but no specific dates for conduct or response are provided."
+      },
+      "4": {
+        "finding_index": 4,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2025-12-19",
+        "response_type": "lawsuit_filing",
+        "finding_type_tag": "other",
+        "rationale": "Lawsuit filed 2025-12-19 by LifeWise Academy alleging exclusion from School Resource Fair; no dates given for when the alleged exclusion occurred."
+      },
+      "5": {
+        "finding_index": 5,
+        "conduct_date_earliest": "2021-04",
+        "conduct_date_latest": null,
+        "response_date": "2023-02-10",
+        "response_type": "investigation",
+        "finding_type_tag": "sexual_abuse_by_staff",
+        "rationale": "Allegation of abuse by Northwest SOIL staffer dated April 2021; state department review/response noted as 2023-02-10; finding uses 'emotional and physical abuse' suggesting potential sexual misconduct context."
+      },
+      "6": {
+        "finding_index": 6,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2025",
+        "response_type": "other",
+        "finding_type_tag": "positive_recognition",
+        "rationale": "Board of Distinction award issued in 2025; this is a positive recognition with no underlying adverse conduct."
+      },
+      "7": {
+        "finding_index": 7,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2019",
+        "response_type": "other",
+        "finding_type_tag": "routine_governance",
+        "rationale": "Superintendent appointment/hiring in 2019; this is a routine governance matter with no underlying misconduct or adverse event."
+      }
+    },
+    "usage": {
+      "input_tokens": 1667,
+      "output_tokens": 845
+    }
+  },
+  "stage1": {
+    "included_count": 3,
+    "excluded_count": 3,
+    "usage": {
+      "input_tokens": 1601,
+      "output_tokens": 569
+    }
+  },
+  "stage2": {
+    "narrative": "In 2015, an internal investigation into the Everett School District's Special Services Department resulted in nearly $55,000 in legal fees for the district. The investigation was launched following complaints that students were not receiving services they are entitled to under the law.\n\nIn an undated report, a family filed a $20 million claim against the Everett School District, alleging that a student was subjected to sustained bullying and physical assault. The family alleges that the district permitted an environment in which such conduct was able to occur.\n\nIn 2023, reporting indicated that a state oversight body took a limited role when presented with concerns about an organization called Northwest SOIL, including a 2021 allegation that a staffer had committed emotional and physical abuse against a student enrolled in the Everett School District. The state's response to those concerns was described as hands-off.",
+    "usage": {
+      "input_tokens": 1400,
+      "output_tokens": 303
+    }
+  },
+  "checks": {
+    "hallucinations": [],
+    "student_id_leaks": [],
+    "death_circ": [],
+    "gendered_student": [],
+    "evaluative": [],
+    "date_first": []
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "nces_id": "530033000043",
+  "name": "Bainbridge High School",
+  "district_name": "Bainbridge Island School District",
+  "findings_count": 4,
+  "stage0": {
+    "kept_count": 3,
+    "dropped": [
+      {
+        "finding_index": 4,
+        "rule": "CONDUCT_DATE_ANCHOR",
+        "extraction": {
+          "finding_index": 4,
+          "conduct_date_earliest": "1984",
+          "conduct_date_latest": "1986",
+          "response_date": "2024-12-18",
+          "response_type": "lawsuit_filing",
+          "finding_type_tag": "sexual_abuse_by_staff",
+          "rationale": "Lawsuit filed 2024-12-18 alleges sexual abuse by two teachers 'almost 40 years ago' \u2192 approximately 1984-1986 (computed as ~2024 minus 40 years)."
+        }
+      }
+    ],
+    "extractions": {
+      "1": {
+        "finding_index": 1,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2024-11-14",
+        "response_type": "other",
+        "finding_type_tag": "routine_governance",
+        "rationale": "Board voted to hire superintendent and extend contract on 2024-11-14; no underlying conduct date applies to a hiring/contract action."
+      },
+      "2": {
+        "finding_index": 2,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2023-02-24",
+        "response_type": "verdict",
+        "finding_type_tag": "bullying_failure_to_protect",
+        "rationale": "Verdict rendered 2023-02-24 against district for failure to protect disabled student from bullying and sexual harassment; no specific dates given for when the bullying/harassment occurred."
+      },
+      "3": {
+        "finding_index": 3,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2023-04-07",
+        "response_type": "settlement",
+        "finding_type_tag": "student_death_negligence",
+        "rationale": "Settlement reached 2023-04-07 for $1.325 million following a student suicide; no specific date given for when the suicide occurred."
+      },
+      "4": {
+        "finding_index": 4,
+        "conduct_date_earliest": "1984",
+        "conduct_date_latest": "1986",
+        "response_date": "2024-12-18",
+        "response_type": "lawsuit_filing",
+        "finding_type_tag": "sexual_abuse_by_staff",
+        "rationale": "Lawsuit filed 2024-12-18 alleges sexual abuse by two teachers 'almost 40 years ago' \u2192 approximately 1984-1986 (computed as ~2024 minus 40 years)."
+      }
+    },
+    "usage": {
+      "input_tokens": 1352,
+      "output_tokens": 525
+    }
+  },
+  "stage1": {
+    "included_count": 2,
+    "excluded_count": 1,
+    "usage": {
+      "input_tokens": 1262,
+      "output_tokens": 314
+    }
+  },
+  "stage2": {
+    "narrative": "In 2023, a $300,000 verdict was rendered against the Bainbridge Island School District following a finding that the district failed to protect a student from aggressive bullying and sexual harassment. The damages were awarded at the district level in connection with the district's failure to intervene in the documented harm.\n\nAlso at the district level, in 2023, the Bainbridge Island School District reached a $1.325 million civil settlement with a family following the death of a student. The settlement reflects the district's legal accountability in connection with the incident.",
+    "usage": {
+      "input_tokens": 1255,
+      "output_tokens": 232
+    }
+  },
+  "checks": {
+    "hallucinations": [],
+    "student_id_leaks": [],
+    "death_circ": [],
+    "gendered_student": [],
+    "evaluative": [],
+    "date_first": []
+  }
+}

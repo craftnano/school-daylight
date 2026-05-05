@@ -1,0 +1,145 @@
+{
+  "nces_id": "530375000579",
+  "name": "Maywood Middle School",
+  "district_name": "Issaquah School District",
+  "findings_count": 10,
+  "stage0": {
+    "kept_count": 9,
+    "dropped": [
+      {
+        "finding_index": 5,
+        "rule": "CONDUCT_DATE_ANCHOR",
+        "extraction": {
+          "finding_index": 5,
+          "conduct_date_earliest": "1992",
+          "conduct_date_latest": "2000",
+          "response_date": "2021-03-26",
+          "response_type": "settlement",
+          "finding_type_tag": "sexual_abuse_by_staff",
+          "rationale": "Settlement agreement dated 2021-03-26 for $4.25 million; underlying conduct (child molestation by teacher Richard Buckley) occurred 1992-2000 when he taught at Issaquah Middle School."
+        }
+      }
+    ],
+    "extractions": {
+      "1": {
+        "finding_index": 1,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": null,
+        "response_type": "routine_governance",
+        "finding_type_tag": "positive_recognition",
+        "rationale": "Robotics program recognition with awards; no underlying misconduct or incident date stated, only program achievement."
+      },
+      "2": {
+        "finding_index": 2,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": null,
+        "response_type": "routine_governance",
+        "finding_type_tag": "positive_recognition",
+        "rationale": "Robotics program expansion and funding announcement; no underlying misconduct or incident date, only program expansion information."
+      },
+      "3": {
+        "finding_index": 3,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": null,
+        "response_type": "lawsuit_filing",
+        "finding_type_tag": "sexual_harassment_by_principal",
+        "rationale": "Lawsuit filed against district alleging principal sexual harassment and mistreatment; no specific conduct date or lawsuit filing date provided."
+      },
+      "4": {
+        "finding_index": 4,
+        "conduct_date_earliest": "2014",
+        "conduct_date_latest": null,
+        "response_date": "2018-10-26",
+        "response_type": "lawsuit_filing",
+        "finding_type_tag": "sexual_assault_bullying_failure_to_protect",
+        "rationale": "Lawsuit filed 2018-10-26 alleges sexual assault at Skyline High School in 2014 and subsequent years of bullying and harassment; conduct began 2014 but end date of harassment not specified."
+      },
+      "5": {
+        "finding_index": 5,
+        "conduct_date_earliest": "1992",
+        "conduct_date_latest": "2000",
+        "response_date": "2021-03-26",
+        "response_type": "settlement",
+        "finding_type_tag": "sexual_abuse_by_staff",
+        "rationale": "Settlement agreement dated 2021-03-26 for $4.25 million; underlying conduct (child molestation by teacher Richard Buckley) occurred 1992-2000 when he taught at Issaquah Middle School."
+      },
+      "6": {
+        "finding_index": 6,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2026-01-16",
+        "response_type": "investigation",
+        "finding_type_tag": "civil_rights_complaint",
+        "rationale": "Petition filed 2026-01-16 calling for independent investigation into district handling of safety and Title IX violations; alleged recent incidents but no specific dates of underlying conduct provided."
+      },
+      "7": {
+        "finding_index": 7,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2025-11-01",
+        "response_type": "routine_governance",
+        "finding_type_tag": "routine_governance",
+        "rationale": "Leadership appointment/status announcement as of 2025-11-01; no underlying misconduct or adverse action, routine administrative information."
+      },
+      "8": {
+        "finding_index": 8,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2025-07-01",
+        "response_type": "routine_governance",
+        "finding_type_tag": "routine_governance",
+        "rationale": "Leadership appointment effective 2025-07-01; routine administrative action, no underlying misconduct or incident."
+      },
+      "9": {
+        "finding_index": 9,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2025-11-01",
+        "response_type": "routine_governance",
+        "finding_type_tag": "routine_governance",
+        "rationale": "Announcement of levy approvals as of 2025-11-01; routine governance matter, no underlying misconduct or adverse action."
+      },
+      "10": {
+        "finding_index": 10,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": null,
+        "response_type": "investigation",
+        "finding_type_tag": "staff_misconduct_other",
+        "rationale": "Employee placed on non-disciplinary leave pending investigation of social media political comments; no specific conduct date or investigation initiation date provided in undated summary."
+      }
+    },
+    "usage": {
+      "input_tokens": 2173,
+      "output_tokens": 1194
+    }
+  },
+  "stage1": {
+    "included_count": 3,
+    "excluded_count": 6,
+    "usage": {
+      "input_tokens": 2061,
+      "output_tokens": 759
+    }
+  },
+  "stage2": {
+    "narrative": "In 2026, parents and community members at Maywood Middle School submitted a petition calling for an independent investigation into Issaquah School District leadership over the handling of student and staff safety and Title IX compliance. The petition alleged that administration dismissed credible reports of threats, aggression, assault, drugs, and weapons on campus, and that district leadership failed to enforce federal and state mandates for emergency removals.\n\nAt the district level, two former students sued the Issaquah School District in 2018, alleging the district failed to protect them from widespread bullying and harassment following a sexual assault involving other students at a district high school in 2014. The lawsuit named the superintendent, a high school principal, and a school resource officer as having failed to address repeated complaints, with the plaintiffs alleging they endured years of continued abuse after the assault was reported. In a separate action, an undated lawsuit brought by a former Endeavour Elementary School employee alleged that district leaders ignored complaints that the school's principal had repeatedly sexually harassed the employee and mistreated students.",
+    "usage": {
+      "input_tokens": 1478,
+      "output_tokens": 400
+    }
+  },
+  "checks": {
+    "hallucinations": [],
+    "student_id_leaks": [],
+    "death_circ": [
+      "'at the school'"
+    ],
+    "gendered_student": [],
+    "evaluative": [],
+    "date_first": []
+  }
+}

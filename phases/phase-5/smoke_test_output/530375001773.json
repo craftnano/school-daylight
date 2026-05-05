@@ -1,0 +1,152 @@
+{
+  "nces_id": "530375001773",
+  "name": "Echo Glen School",
+  "district_name": "Issaquah School District",
+  "findings_count": 11,
+  "stage0": {
+    "kept_count": 10,
+    "dropped": [
+      {
+        "finding_index": 6,
+        "rule": "CONDUCT_DATE_ANCHOR",
+        "extraction": {
+          "finding_index": 6,
+          "conduct_date_earliest": "1992",
+          "conduct_date_latest": "2000",
+          "response_date": "2021-03-26",
+          "response_type": "settlement",
+          "finding_type_tag": "sexual_abuse_by_staff",
+          "rationale": "Teacher Richard Buckley taught at school 1992\u20132000 and was later convicted of child molestation; settlement paid 2021-03-26, more than 20 years after conduct."
+        }
+      }
+    ],
+    "extractions": {
+      "1": {
+        "finding_index": 1,
+        "conduct_date_earliest": "2024-07",
+        "conduct_date_latest": "2024-07",
+        "response_date": "2024-07-09",
+        "response_type": "other",
+        "finding_type_tag": "facility_safety_overcrowding",
+        "rationale": "Overcrowding at facility reported in July 2024; suspension of intakes announced 2024-07-09 in response to ongoing safety compromise."
+      },
+      "2": {
+        "finding_index": 2,
+        "conduct_date_earliest": "2024-05",
+        "conduct_date_latest": "2024-05",
+        "response_date": "2024-10-01",
+        "response_type": "investigation",
+        "finding_type_tag": "escape_security_failure",
+        "rationale": "Multiple escapes occurred, with significant incident in May 2024; investigation/reporting occurred by 2024-10-01."
+      },
+      "3": {
+        "finding_index": 3,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2025-10-03",
+        "response_type": "investigation",
+        "finding_type_tag": "sexual_abuse_by_staff",
+        "rationale": "Law firms investigating sexual assault allegations at facility; specific conduct dates not stated, only that lawsuits and settlements exist historically."
+      },
+      "4": {
+        "finding_index": 4,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": null,
+        "response_type": "lawsuit_filing",
+        "finding_type_tag": "sexual_harassment_by_leadership",
+        "rationale": "Lawsuit filed by former employee against district for principal's sexual harassment; conduct dates and response date both not specified ('undated')."
+      },
+      "5": {
+        "finding_index": 5,
+        "conduct_date_earliest": "2014",
+        "conduct_date_latest": "2014",
+        "response_date": "2018-10-26",
+        "response_type": "lawsuit_filing",
+        "finding_type_tag": "sexual_assault_by_student_failure_to_protect",
+        "rationale": "Sexual assault by students occurred in 2014 at Skyline High School; lawsuit filed 2018-10-26 alleging years of subsequent bullying/harassment."
+      },
+      "6": {
+        "finding_index": 6,
+        "conduct_date_earliest": "1992",
+        "conduct_date_latest": "2000",
+        "response_date": "2021-03-26",
+        "response_type": "settlement",
+        "finding_type_tag": "sexual_abuse_by_staff",
+        "rationale": "Teacher Richard Buckley taught at school 1992\u20132000 and was later convicted of child molestation; settlement paid 2021-03-26, more than 20 years after conduct."
+      },
+      "7": {
+        "finding_index": 7,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2026-01-16",
+        "response_type": "other",
+        "finding_type_tag": "systemic_safety_failure",
+        "rationale": "Community petition calls for independent investigation of recent unspecified incidents involving threats, aggression, assault, drugs, weapons; petition date 2026-01-16, conduct dates not stated."
+      },
+      "8": {
+        "finding_index": 8,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2025-11-01",
+        "response_type": "other",
+        "finding_type_tag": "routine_governance",
+        "rationale": "Leadership announcement of current superintendent; no underlying conduct or misconduct alleged; routine governance note as of 2025-11-01."
+      },
+      "9": {
+        "finding_index": 9,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2025-07-01",
+        "response_type": "other",
+        "finding_type_tag": "routine_governance",
+        "rationale": "Routine appointment announcement of assistant superintendent effective 2025-07-01; no underlying conduct or misconduct alleged."
+      },
+      "10": {
+        "finding_index": 10,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2025-11-01",
+        "response_type": "other",
+        "finding_type_tag": "routine_governance",
+        "rationale": "Routine announcement of board-approved levies for February 2026 ballot; no underlying conduct or misconduct alleged."
+      },
+      "11": {
+        "finding_index": 11,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": null,
+        "response_type": "investigation",
+        "finding_type_tag": "staff_misconduct_other",
+        "rationale": "Employee placed on non-disciplinary leave pending investigation of social media political comments; no specific conduct date provided ('undated')."
+      }
+    },
+    "usage": {
+      "input_tokens": 2280,
+      "output_tokens": 1329
+    }
+  },
+  "stage1": {
+    "included_count": 6,
+    "excluded_count": 4,
+    "usage": {
+      "input_tokens": 2166,
+      "output_tokens": 1089
+    }
+  },
+  "stage2": {
+    "narrative": "In 2024, state regulators suspended new intakes at Echo Glen Children's Center after overcrowding reached a level described as compromising the safety of staff and young people, with the facility's population at its total capacity of 112. That same year, multiple escapes occurred at the facility, including a notable May 2024 incident involving seven students. An investigation by a local news outlet revealed that administrators had been warned of the planned escape days before it took place, but requests for additional staffing were denied and security measures remained inadequate.\n\nAlso in 2024, law firms began actively investigating allegations of sexual assault at Echo Glen Children's Center. Reports indicate the facility has a documented history of abuse reflected in civil lawsuits, public settlements, and criminal investigations.\n\nAt the district level, two former students sued the Issaquah School District in 2018, alleging the district failed to protect them following a sexual assault and that they endured years of bullying and harassment after the incident was reported. The lawsuit alleged that a superintendent, a principal, and a school officer failed to address repeated complaints. No resolution is noted in the available record.\n\nSeparately, a former employee of Endeavour Elementary School filed a lawsuit against the Issaquah School District in an undated filing, claiming district leaders disregarded complaints that a principal repeatedly sexually harassed the employee and mistreated students. No resolution is noted in the available record.\n\nIn an undated report from January 2026, parents and community members submitted a petition calling for an independent investigation into district leadership's handling of student and staff safety and Title IX compliance. The petition alleged that administrators dismissed credible reports of threats, aggression, assault, drugs, and weapons on campus, and failed to enforce applicable federal and state mandates regarding emergency removals. No resolution is noted in the available record.",
+    "usage": {
+      "input_tokens": 1914,
+      "output_tokens": 608
+    }
+  },
+  "checks": {
+    "hallucinations": [],
+    "student_id_leaks": [],
+    "death_circ": [],
+    "gendered_student": [],
+    "evaluative": [],
+    "date_first": []
+  }
+}

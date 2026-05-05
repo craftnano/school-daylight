@@ -1,0 +1,75 @@
+{
+  "nces_id": "530033000044",
+  "name": "Halilts Elementary School",
+  "district_name": "Bainbridge Island School District",
+  "findings_count": 4,
+  "stage0": {
+    "kept_count": 4,
+    "dropped": [],
+    "extractions": {
+      "1": {
+        "finding_index": 1,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2024-11-14",
+        "response_type": "other",
+        "finding_type_tag": "routine_governance",
+        "rationale": "School Board voted to hire superintendent on 2024-11-14; no underlying conduct date is relevant to this administrative hiring action."
+      },
+      "2": {
+        "finding_index": 2,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2023-02-24",
+        "response_type": "verdict",
+        "finding_type_tag": "bullying_failure_to_protect",
+        "rationale": "Verdict rendered 2023-02-24 for failure to protect special needs student from bullying and sexual harassment; no specific conduct date range is stated in the text."
+      },
+      "3": {
+        "finding_index": 3,
+        "conduct_date_earliest": null,
+        "conduct_date_latest": null,
+        "response_date": "2023-04-07",
+        "response_type": "settlement",
+        "finding_type_tag": "student_death_negligence",
+        "rationale": "Settlement reached 2023-04-07 for family whose daughter committed suicide at school property; no specific conduct date is provided in the summary."
+      },
+      "4": {
+        "finding_index": 4,
+        "conduct_date_earliest": "1984 or 1985",
+        "conduct_date_latest": "1985 or 1986",
+        "response_date": "2024-12-18",
+        "response_type": "lawsuit_filing",
+        "finding_type_tag": "sexual_abuse_by_staff",
+        "rationale": "Lawsuit filed 2024-12-18 alleges sexual abuse by two teachers 'almost 40 years ago' \u2014 inferred as approximately 1985 (\u00b11 year), given the filing date of December 2024."
+      }
+    },
+    "usage": {
+      "input_tokens": 1352,
+      "output_tokens": 530
+    }
+  },
+  "stage1": {
+    "included_count": 3,
+    "excluded_count": 1,
+    "usage": {
+      "input_tokens": 1409,
+      "output_tokens": 476
+    }
+  },
+  "stage2": {
+    "narrative": "In 2023, a verdict was rendered against the Bainbridge Island School District, with a retired judge awarding $300,000 in damages after finding that the district failed to protect a student from aggressive bullying and sexual harassment. Also at the district level in 2023, the Bainbridge Island School District reached a $1.325 million civil settlement with a family following the death of a student; the settlement reflects the district's institutional liability in the matter. In 2024, a lawsuit was filed in Kitsap County Superior Court against the Bainbridge Island School District alleging sexual abuse by two district employees \u2014 described in court filings as a science teacher and wrestling coach and a history teacher and coach \u2014 with the alleged conduct said to have occurred approximately 40 years prior. That litigation remained unresolved as of the filing date.",
+    "usage": {
+      "input_tokens": 1412,
+      "output_tokens": 357
+    }
+  },
+  "checks": {
+    "hallucinations": [],
+    "student_id_leaks": [],
+    "death_circ": [],
+    "gendered_student": [],
+    "evaluative": [],
+    "date_first": []
+  }
+}

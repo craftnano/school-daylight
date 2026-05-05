@@ -1,0 +1,48 @@
+{
+  "metadata": {
+    "nces_id": "530033000043",
+    "school_name": "Bainbridge High School",
+    "district_name": "Bainbridge Island School District",
+    "n_school": 1,
+    "n_district": 4,
+    "n_total_before_dedup": 5,
+    "n_deduped": 5,
+    "n_dropped_by_dedup": 0,
+    "dedup_collisions": [],
+    "school_context_status": "enriched",
+    "district_context_status": "enriched"
+  },
+  "findings_count": 5,
+  "findings_preview": [
+    {
+      "category": "leadership",
+      "date": "2024-11-14",
+      "source_url": "https://bisd303.org/44737_3?articleID=15429",
+      "summary_preview": "<cite index=\"11-1\">At the November 14, 2024, School Board Meeting, the Board voted 4-1 to hire Amii Thompson as the district's superintendent by extending her c"
+    },
+    {
+      "category": "investigations_ocr",
+      "date": "2023-02-24",
+      "source_url": "https://pcva.law/press-releases/bainbridge-island-school-district-found-negligent-bullying-case-student-autism/",
+      "summary_preview": "<cite index=\"3-3,3-7\">A $300,000 verdict was rendered against the Bainbridge Island School District for failing to protect a special needs student from aggressi"
+    },
+    {
+      "category": "other",
+      "date": "2023-04-07",
+      "source_url": "https://www.kitsapdailynews.com/news/bisd-settles-suit-over-suicide-for-1-325-million/",
+      "summary_preview": "<cite index=\"8-1\">The Bainbridge Island School District settled a civil lawsuit for $1.325 million to a family whose daughter committed suicide at a wooded loca"
+    },
+    {
+      "category": "other",
+      "date": "2024-12-18",
+      "source_url": "https://www.bainbridgereview.com/news/bisd-sued-over-alleged-teachers-abuse-40-years-ago/",
+      "summary_preview": "<cite index=\"9-9,9-10,9-2,9-3\">An unnamed Seattle woman filed a lawsuit in Kitsap County Superior Court against the Bainbridge Island School District in Decembe"
+    },
+    {
+      "category": "leadership",
+      "date": "2026-01-12",
+      "source_url": "https://mynorthwest.com/crime-blotter/bainbridge-high-school-principal/4189047",
+      "summary_preview": "Principal Kristina Rodgers was arrested on January 12, 2026 by Poulsbo Police Department on allegations of driving under the influence, reckless endangerment, a"
+    }
+  ]
+}

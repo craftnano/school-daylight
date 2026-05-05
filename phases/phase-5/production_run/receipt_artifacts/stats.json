@@ -1,0 +1,20 @@
+{
+  "total_schools": 2532,
+  "n_with_narrative": 2427,
+  "n_without_narrative": 105,
+  "status_counts": {
+    "no_findings": 221,
+    "stage1_filtered_to_zero": 412,
+    "ok": 1794
+  },
+  "haiku_in": 6617543,
+  "haiku_out": 2506556,
+  "haiku_cost": 19.150323,
+  "sonnet_in": 5721,
+  "sonnet_out": 754,
+  "sonnet_cost": 0.014236500000000001,
+  "total_cost": 19.1645595,
+  "n_s2_succeeded": 5,
+  "n_s2_errored": 0,
+  "errors": []
+}

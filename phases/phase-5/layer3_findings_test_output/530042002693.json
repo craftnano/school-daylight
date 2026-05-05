@@ -1,0 +1,72 @@
+{
+  "metadata": {
+    "nces_id": "530042002693",
+    "school_name": "Squalicum High School",
+    "district_name": "Bellingham School District",
+    "n_school": 2,
+    "n_district": 6,
+    "n_total_before_dedup": 8,
+    "n_deduped": 7,
+    "n_dropped_by_dedup": 1,
+    "dedup_collisions": [
+      {
+        "layer": "school",
+        "key": [
+          "url",
+          "https://www.cascadiadaily.com/2026/feb/05/bellingham-public-schools-admits-liability-in-school-bus-sexual-assault-case/",
+          "2026-02-05",
+          "investigations_ocr"
+        ],
+        "kept_layer": "district",
+        "school_summary_preview": "Three administrators faced criminal charges for failing to report a sexual assault of a Squalicum High School student on"
+      }
+    ],
+    "school_context_status": "enriched",
+    "district_context_status": "enriched"
+  },
+  "findings_count": 7,
+  "findings_preview": [
+    {
+      "category": "investigations_ocr",
+      "date": "2023-12-12",
+      "source_url": "https://www.cascadiadaily.com/2023/dec/12/criminal-charges-against-bellingham-public-schools-administrators-resolved/",
+      "summary_preview": "<cite index=\"2-23,2-24,2-25,2-26\">Three Bellingham Public School administrators (Jeremy G. Louzao, Meghan V. Dunham, and Maude Chimere Hackney) resolved crimina"
+    },
+    {
+      "category": "investigations_ocr",
+      "date": "2022-12-07",
+      "source_url": "https://www.cascadiadaily.com/2023/dec/12/criminal-charges-against-bellingham-public-schools-administrators-resolved/",
+      "summary_preview": "<cite index=\"2-10,2-11\">A victim of sexual assault filed a federal lawsuit on December 7, 2022 against Bellingham Public Schools for failing to report the alleg"
+    },
+    {
+      "category": "investigations_ocr",
+      "date": "2025-03-24",
+      "source_url": "https://www.cascadiadaily.com/2025/mar/24/district-sued-family-of-student-who-was-sexually-harassed-calls-response-catastrophically-broken/",
+      "summary_preview": "<cite index=\"8-24,8-25,8-26\">A student who was 15 years old in 2022 filed a federal lawsuit against Bellingham Public Schools for Title IX violations and neglig"
+    },
+    {
+      "category": "investigations_ocr",
+      "date": "2026-02-05",
+      "source_url": "https://www.cascadiadaily.com/2026/feb/05/bellingham-public-schools-admits-liability-in-school-bus-sexual-assault-case/",
+      "summary_preview": "<cite index=\"9-2,9-3,9-4,9-6\">Bellingham Public Schools admitted liability for negligence in a lawsuit filed by a family whose son was sexually assaulted on a s"
+    },
+    {
+      "category": "community_investment",
+      "date": "2022-02-09",
+      "source_url": "https://www.cascadiadaily.com/2022/feb/09/voters-narrowly-pass-bellingham-public-schools-bon/",
+      "summary_preview": "<cite index=\"14-1,14-5\">Bellingham Public Schools' bond measure passed with 60.6% approval in February 2022, a $122 million, 20-year bond funding new Community "
+    },
+    {
+      "category": "community_investment",
+      "date": "2025-11-06",
+      "source_url": "https://www.cascadiadaily.com/2025/nov/04/bellingham-school-levies-poised-to-pass-lynden-bond-to-fail-for-third-time/",
+      "summary_preview": "<cite index=\"15-4,15-5\">In November 2025, Bellingham Public Schools' two levies passed, bringing the district an additional $15 million annually, with 64.49% vo"
+    },
+    {
+      "category": "awards_recognition",
+      "date": "2025-03-07",
+      "source_url": "https://www.bellinghamschools.org/about/departments/communications-and-community-relations/promise-awards",
+      "summary_preview": "Squalicum High School staff members were recognized in the 2025 Bellingham Public Schools Promise Awards, including athletic trainer Tido Nakazato and six staff"
+    }
+  ]
+}
