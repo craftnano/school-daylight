@@ -4,7 +4,7 @@
 
 Civic transparency tool generating school briefings from public education data. Batch ETL pipeline → MongoDB → AI enrichment → cached briefings → Streamlit frontend. NOT a rating site. An interpretation layer.
 
-The builder is not a developer. All code is written by Claude Code agents. Code must be understandable, maintainable, and debuggable by someone who reads Python but doesn't write it. This constraint is non-negotiable and takes priority over cleverness, conciseness, or performance optimization.
+The builder is not a developer. All code is written by Claude Code agents (referred to as "CC" throughout this file). Code must be understandable, maintainable, and debuggable by someone who reads Python but doesn't write it — whether the builder, a future contributor, or future Claude instances.
 
 ## Architecture
 
@@ -39,20 +39,25 @@ docs/               # Methodology, data governance, build log
 - Pipeline is idempotent. Drop and recreate collection on each full load. Safe to run twice.
 - Every MongoDB document must include `metadata.dataset_version` (e.g., `"2026-02-v1"`) and `metadata.load_timestamp` (ISO 8601) at the document root. These enable provenance tracking across pipeline runs.
 
-### Non-Coder Maintainability (READ THIS FIRST)
-Every design decision must pass this test: "Can the builder diagnose and fix a problem at 11pm on a Tuesday without calling a developer?" If the answer is no, redesign it.
+### Code Conventions
 
-**Logging:** Every script logs to both console and a timestamped log file in `logs/`. Log messages are complete English sentences, not codes. Wrong: `ERR_JOIN_FAIL: 114`. Right: `114 schools failed to join CRDC data. Most common reason: NCES ID not found in CRDC file (87 schools). See logs/join_failures_2026-03-15.csv for full list.`
+**Logging:** Every script logs to both console and a timestamped log file in `logs/`. Log messages are complete English sentences, not codes.
 
-**Error messages:** Every error must say three things: what went wrong, why it probably happened, and what to try. Wrong: `ConnectionError: timeout`. Right: `Could not connect to MongoDB Atlas. This usually means: (1) your internet connection is down, (2) the connection string in .env is wrong, or (3) Atlas IP whitelist doesn't include your current IP. Check .env MONGO_URI and try again.`
+**Error messages:** Every error must say three things: what went wrong, why it probably happened, and what to try. Example: `Could not connect to MongoDB Atlas. This usually means: (1) your internet connection is down, (2) the connection string in .env is wrong, or (3) Atlas IP whitelist doesn't include your current IP. Check .env MONGO_URI and try again.`
 
-**Config over code:** Anything the builder might need to change lives in YAML or .env, not in Python. Cleaning rules, flag thresholds, suppression markers, prompt templates, comparison group definitions. If it's a number or a string that affects output, it's config.
+**Config over code:** Anything that might need to change lives in YAML or .env, not in Python. Cleaning rules, flag thresholds, suppression markers, prompt templates, comparison group definitions. If it's a number or a string that affects output, it's config.
 
-**File naming:** Scripts are numbered for run order: `01_load_nces.py`, `02_load_crosswalk.py`. A non-coder can see the sequence by listing the directory.
+**File naming:** Scripts are numbered for run order: `01_load_nces.py`, `02_load_crosswalk.py`. The sequence is visible from the directory listing.
 
-**Comments:** Comment the WHY, not the WHAT. Wrong: `# load the CSV`. Right: `# OSPI uses state codes, not NCES IDs. We need the crosswalk to join.` Every function gets a one-line docstring explaining its purpose in plain English. Every non-obvious decision gets a comment explaining why this approach was chosen over the obvious alternative. A non-coder reading the code should be able to follow the reasoning even if they can't follow the syntax.
+**Comments:** Comments explain WHY, not WHAT. One-line docstring per function. Comment any non-obvious choice.
 
-**Module headers:** Every pipeline script and major module starts with a grep-able header block. This is the builder's navigation system — searchable across the entire repo.
+**Dependency pinning:** `requirements.txt` with exact versions (`pandas==2.2.1`, not `pandas>=2.0`). A `pip install` today must produce the same result six months from now.
+
+**Git commits:** Every commit message explains what changed AND why.
+
+### Repo Navigation Conventions
+
+Every pipeline script and major module starts with a grep-able header block. Searchable across the entire repo.
 
 ```python
 # PURPOSE: Load OSPI discipline data and join to CCD spine
@@ -64,7 +69,7 @@ Every design decision must pass this test: "Can the builder diagnose and fix a p
 # FAILURE MODES: Comma-in-IDs (strip before join); grade label "All" not "All Grades"
 ```
 
-**Trace tags:** Use these standardized tags inline so any field, rule, or test can be found with a single search across the repo.
+Use these standardized trace tags inline so any field, rule, or test can be found with a single search.
 
 ```python
 # LINEAGE: discipline.ospi.rate           — marks where a schema field is computed
@@ -75,11 +80,24 @@ Every design decision must pass this test: "Can the builder diagnose and fix a p
 
 Search examples: `rg "LINEAGE: discipline"` finds every place discipline fields are touched. `rg "RULE: SUPPRESSION"` finds every suppression handler. `rg "TEST: GOLDEN"` finds every golden school check.
 
-**No magic:** No decorators, metaclasses, abstract base classes, or design patterns that require Python expertise to understand. Straightforward procedural code. Functions with clear names. If a junior developer would need to Google it, don't use it.
+## When Expected Behavior Doesn't Match Reality
 
-**Dependency pinning:** `requirements.txt` with exact versions (`pandas==2.2.1`, not `pandas>=2.0`). A `pip install` today must produce the same result six months from now.
+The following situations all trigger STOP AND REPORT:
 
-**Git commits:** Every commit message explains what changed AND why. Wrong: `fix bug`. Right: `Fix OSPI join: crosswalk file uses 4-digit school codes, not 5-digit. Added zero-padding in step 02.`
+- A credential, API key, file path, or environment variable that was expected does not work or is not present
+- A database query, API call, or file operation returns an unexpected error or unexpected results
+- Data CC needs is not where CC expected it to be
+- An instruction CC is following references something CC cannot find
+- CC's own action produces a result CC did not anticipate
+- A retry of an operation produces different results than the first attempt
+
+In any of these situations, CC's default action is to stop, report what was expected versus what happened, and wait for builder direction.
+
+## Destructive Operations
+
+Operations that delete, drop, or overwrite production data require explicit builder approval before CC writes the command. Propose in plain English, get plain-English approval, then write and execute.
+
+Includes: drop_collection, deleteMany without _id filter, drop_database, update_many touching critical fields (layer3_narrative, metadata, source data), schema modifications, and any ad-hoc destructive operation outside approved pipeline scripts.
 
 ## Commands
 
@@ -105,14 +123,7 @@ streamlit run app/main.py
 
 ## Verification Receipts
 
-Every phase produces a `verification_receipt.md` in `docs/receipts/`. This is how the builder knows the agent's work is correct. The receipt is a plain-English document, not a log file. It shows:
-- What was tested
-- Expected result vs. actual result
-- Pass/fail for each check
-- Plain-English explanation of any failures
-- Suggested fix for any failures
-
-The builder reads the receipt, not the code. If the receipt is green, proceed. If red, the agent stops and reports.
+Every phase produces a `verification_receipt.md` in `docs/receipts/`. The receipt is a plain-English document showing what was tested, expected vs. actual results, pass/fail for each check, plain-English explanation of any failures, and suggested fixes. The builder reads the receipt, not the code. If green, proceed. If red, the agent stops and reports.
 
 Every Phase 2+ receipt must include SHA256 hashes for all source input files. This makes idempotent reruns provable, not just aspirational.
 
@@ -129,25 +140,7 @@ Fairhaven Middle School (Bellingham, WA) is the hand-verified reference school. 
 
 ## Health Check Script
 
-`scripts/health_check.py` tests all external dependencies and reports in plain English:
-
-```
-MongoDB Atlas:     ✓ Connected (2,312 schools loaded, last refresh 2026-03-15)
-Anthropic API:     ✓ Key valid (Haiku and Sonnet accessible)
-Data freshness:    ✓ CRDC 2021-22, NCES 2023-24, OSPI 2024-25
-Fairhaven check:   ✓ Enrollment 587, FRL 48.2%, all fields present
-Disk space:        ✓ 2.1 GB free
-Last pipeline run: 2026-03-15 09:42 PST (completed successfully)
-```
-
-If any check fails, it says why and what to do about it.
-
-## What This Project Is NOT
-
-- Not a real-time system. All data is batch-loaded. Briefings are pre-generated and cached.
-- Not a rating site. No scores, no rankings, no comparisons between schools.
-- Not a social platform. No user accounts, no comments, no forums.
-- Not a startup. Free, open source, no monetization. MIT license for code, CC BY 4.0 for docs.
+`scripts/health_check.py` tests all external dependencies and reports in plain English. If any check fails, it says why and what to do about it.
 
 ## Key Design Documents
 

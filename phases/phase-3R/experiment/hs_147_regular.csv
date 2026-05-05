@@ -1,0 +1,148 @@
+school_name,district,city,enrollment_total,ospi_school_code
+Morgan Center School,Bremerton School District,Bremerton,0,3883
+Island Juvenile Detention Education Program,Coupeville School District,Coupeville,0,5059
+Island County Corrections Facility Ed Program,Coupeville School District,Coupeville,0,5234
+Sno Co Jail,Everett School District,Everett,0,1810
+Southwest Youth and Family Services,Highline School District,Seattle,0,5277
+Benton County Jail,Kennewick School District,Kennewick,0,5235
+Choice,Riverview School District,Carnation,0,5244
+Twin Rivers Group Home,Richland School District,RICHLAND,0,3469
+Spokane County Jail,Spokane School District,Spokane,0,5249
+Tacoma Pierce County Education Center,Tacoma School District,Tacoma,0,5184
+Vancouver Contracted Programs,Vancouver School District,VANCOUVER,0,5258
+Yakima Adult Jail,Yakima School District,Yakima,0,5263
+Canyon View Group Home,Eastmont School District,East Wenatchee,1,2986
+Mason County Detention Center,Shelton School District,Shelton,1,1888
+Lewis County Jail,Chehalis School District,Chehalis,2,5317
+Touchstone,Olympia School District,Olympia,2,5259
+Oakridge Group Home,Clover Park School District,Lakewood,3,5298
+Ridgeview Group Home,Yakima School District,Yakima,3,5264
+Woodinville Community Center,Northshore School District,Bothell,5,3396
+Okanogan Co Juvenile Detention,Okanogan School District,OKANOGAN,5,3193
+Walla Walla County Juvenile Detention,Walla Walla Public Schools,Walla Walla,5,5705
+Thurs Co Juv Det/Tumwater West E,Tumwater School District,Tumwater,5,3925
+Transition Day Students,Clover Park School District,Lakewood,8,5297
+Alternative Tamarack School,Spokane School District,Spokane,10,1604
+Grays Harbor Juvenile Detention,Aberdeen School District,Aberdeen,11,4267
+Parke Creek Treatment Ctr,Kittitas School District,Ellensburg,11,3213
+Selah Academy Auxiliary,Selah School District,Yakima,13,5560
+Skykomish High School,Skykomish School District,Skykomish,13,2513
+Lewis County Juvenile Detention,Chehalis School District,CHEHALIS,16,1559
+Nespelem High School,Nespelem School District,Nespelem,19,5740
+Remann Hall Juvenile Detention Center,Tacoma School District,Tacoma,21,2039
+Sprague High School,Sprague School District,Sprague,22,2186
+Tonasket Choice High School,Tonasket School District,Tonasket,22,5586
+Gateway to College,Federal Way School District,Federal Way,23,5255
+Paideia High School,Valley School District,Valley,23,5223
+Juvenile Detention Center,Yakima School District,YAKIMA,23,4092
+Quincy Innovation Academy Big Picture,Quincy School District,Quincy,24,5650
+The Healing Lodge,Spokane School District,Spokane,24,1767
+Pacific Crest Innovation Academy,Mill A School District,cook,25,5480
+Glenwood Secondary,Glenwood School District,Glenwood,26,3048
+Lacrosse High School,LaCrosse School District,LaCrosse,28,2088
+A-3 Multiagency Adolescent Prog,Spokane School District,Spokane,29,1533
+Creston Jr-Sr High School,Creston School District,Creston,34,2863
+Benton/Franklin Juvenile Justice Center,Kennewick School District,KENNEWICK,34,4007
+Methow Valley Independent Learning Center,Methow Valley School District,Twisp,35,1621
+Harrington High School,Harrington School District,Harrington,44,3113
+Garfield at Palouse High School,Garfield School District,Palouse,45,1962
+Lind-Ritzville High School,Lind School District,Ritzville,47,2903
+Interagency Detention School,Seattle School District No. 1,SEATTLE,47,3496
+Two Rivers School,Snoqualmie Valley School District,Snoqualmie,56,1502
+Palouse High School,Palouse School District,Palouse,57,2634
+Northport High School,Northport School District,Northport,58,2958
+Wilson Creek High,Wilson Creek School District,Wilson Creek,58,2473
+St John/Endicott High,St. John School District,Saint John,60,3068
+Selkirk High School,Selkirk School District,Ione,76,5226
+Oakesdale High School,Oakesdale School District,Oakesdale,80,2432
+Waitsburg High School,Waitsburg School District,Waitsburg,87,2386
+Dayton High School,Dayton School District,Dayton,88,2302
+Endeavor High School,Kennewick School District,Kennewick,93,5727
+Lewis and Clark High School,Vancouver School District,VANCOUVER,96,3932
+Cedar High School,Shelton School District,Shelton,100,5621
+Almira Coulee Hartline High School,Coulee-Hartline School District,Coulee City,102,2968
+Odessa High School,Odessa School District,ODESSA,103,2443
+Echo Glen School,Issaquah School District,SNOQUALMIE,104,3569
+Wellpinit High School,Wellpinit School District #49,WELLPINIT,108,2550
+Wilbur Secondary School,Wilbur School District,Wilbur,109,3289
+Lopez Middle High School,Lopez School District,Lopez Island,111,2632
+Darrington High School,Darrington School District,DARRINGTON,113,3188
+Pateros High School,Pateros School District,PATEROS,113,2397
+Tekoa High School,Tekoa School District,TEKOA,115,3418
+Maritime High School,Highline School District,Des Moines,126,5672
+Wahkiakum High School,Wahkiakum School District,CATHLAMET,127,3467
+Waterville High School,Waterville School District,WATERVILLE,127,2162
+Trout Lake School,Trout Lake School District,Trout Lake,130,2676
+Ritzville High School,Ritzville School District,Ritzville,133,2132
+Hayes Freedom High School,Camas School District,Camas,161,5104
+The Community School,Spokane School District,Spokane,165,5301
+Orcas Island High School,Orcas Island School District,EASTSOUND,177,2750
+Naselle-Grays River Valley Jr Sr High Schools,Naselle-Grays River Valley School District,NASELLE,189,3295
+Stem Academy at SVT,Central Valley School District,Spokane Valley,190,5542
+West Valley Innovation Center,West Valley School District (Yakima),Yakima,195,5699
+Discovery High School,Camas School District,Camas,201,5533
+Willapa Valley Middle-High,Willapa Valley School District,Raymond,204,2542
+Entiat Middle and High School,Entiat School District,ENTIAT,205,3317
+Neah Bay Junior/ Senior High School,Cape Flattery School District,Neah Bay,206,3145
+Manson High School,Manson School District,MANSON,220,2623
+Bridgeport High School,Bridgeport School District,BRIDGEPORT,238,2788
+Friday Harbor High School,San Juan Island School District,FRIDAY HARBOR,255,2879
+Forks High School,Quillayute Valley School District,Forks,264,2349
+Lake Roosevelt Jr/Sr High School,Grand Coulee Dam School District,COULEE DAM,308,2801
+Okanogan High School,Okanogan School District,Okanogan,308,2246
+Toutle Lake High School,Toutle Lake School District,Toutle,308,2560
+River View High School,Finley School District,KENNEWICK,321,2367
+Asotin Jr Sr High,Asotin-Anatone School District,ASOTIN,346,2434
+Kalama High School,Kalama School District,Kalama,347,5545
+Liberty Bell Jr Sr High,Methow Valley School District,Winthrop,356,2146
+Adna Middle/High School,Adna School District,Chehalis,369,2441
+Vanguard Academy,Moses Lake School District,Moses Lake,387,5726
+Industrial Design Engineering and Arts,Tacoma School District,Tacoma,392,5458
+Cascade High School,Cascade School District,Leavenworth,403,3564
+Castle Rock High School,Castle Rock School District,CASTLE ROCK,422,2281
+Kiona-Benton City High School,Kiona-Benton City School District,Benton City,435,2904
+Chelan High School,Lake Chelan School District,Chelan,439,4260
+Henrietta Lacks Health and Bioscience High School,Evergreen School District (Clark),Vancouver,467,5310
+Technology Access Foundation Academy at Saghalie,Federal Way School District,Federal Way,532,5473
+CASHMERE HIGH SCHOOL,CASHMERE SCHOOL DISTRICT,Cashmere,543,3268
+La Center High School,La Center School District,La Center,555,4431
+Eatonville High School,Eatonville School District,Eatonville,573,2206
+Science and Math Institute,Tacoma School District,Tacoma,597,5169
+Vancouver iTech Preparatory,Vancouver School District,VANCOUVER,600,5271
+Connell High School,North Franklin School District,Connell,615,3272
+Columbia Junior High School,Fife School District,Tacoma,619,4582
+Tacoma School of the Arts,Tacoma School District,Tacoma,658,1860
+Woodland High School,Woodland School District,Woodland,667,3546
+Hockinson High School,Hockinson School District,BRUSH PRAIRIE,669,4568
+Charles Francis Adams High School,Clarkston School District,Clarkston,670,2299
+General William H. Harrison Preparatory School,Clover Park School District,Lakewood,738,5027
+Vancouver School of Arts and Academics,Vancouver School District,VANCOUVER,787,1689
+Sequim Senior High,Sequim School District,Sequim,804,2471
+Prosser High School,Prosser School District,Prosser,877,2508
+Curtis Junior High,University Place School District,UNIVERSITY PLACE,904,3179
+Mark Morris High School,Longview School District,Longview,912,3151
+R A Long High School,Longview School District,Longview,926,2416
+Washougal High School,Washougal School District,Washougal,942,3147
+Port Angeles High School,Port Angeles School District,PORT ANGELES,974,2908
+Columbia River High,Vancouver School District,VANCOUVER,1138,3423
+Hudson's Bay High School,Vancouver School District,VANCOUVER,1197,3081
+Ridgefield High School,Ridgefield School District,RIDGEFIELD,1249,2390
+Othello High School,Othello School District,Othello,1338,3015
+Kelso High School,Kelso School District,Kelso,1390,2266
+Evergreen High School,Evergreen School District (Clark),Vancouver,1427,2724
+Cavelero Mid High School,Lake Stevens School District,Lake Stevens,1490,5099
+Prairie High School,Battle Ground School District,BRUSH PRAIRIE,1502,4104
+Fort Vancouver High School,Vancouver School District,VANCOUVER,1507,2179
+Mountain View High School,Evergreen School District (Clark),Vancouver,1523,4162
+Eastmont Senior High,Eastmont School District,East Wenatchee,1534,2727
+Heritage High School,Evergreen School District (Clark),Vancouver,1569,4523
+Southridge High School,Kennewick School District,KENNEWICK,1612,4484
+Battle Ground High School,Battle Ground School District,BATTLE GROUND,1759,2415
+Skyview High School,Vancouver School District,VANCOUVER,1869,4504
+Kennewick High School,Kennewick School District,Kennewick,1921,2826
+Kamiakin High School,Kennewick School District,KENNEWICK,1956,3731
+Hanford High School,Richland School District,Richland,1959,3833
+Union High School,Evergreen School District (Clark),Camas,1989,5111
+Camas High School,Camas School District,Camas,2026,4567
+Wenatchee High School,Wenatchee School District,WENATCHEE,2066,2134
+Richland High School,Richland School District,Richland,2218,3511

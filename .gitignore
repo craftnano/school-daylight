@@ -39,6 +39,23 @@ phases/phase-4.5/test_results/**/evaluation.md
 # Phase 4 generated reports (pilot batch outputs; the planning/exit docs ARE tracked)
 phases/phase-4/pilot_report.md
 
+# Phase 5 production run state. Load-bearing for any future Stage 2 prompt
+# revision but too large for git (stage1_results.jsonl ~4MB, stage2_batch_requests
+# ~12MB). Files stay in the working tree at their original paths so phase-5
+# runner scripts keep working. Regen cost if lost: ~$19 + ~hours for the Haiku
+# Phase A output. Canonical narratives live in MongoDB layer3_narrative on
+# every school document; these JSONLs are the intermediate provenance.
+phases/phase-5/production_run/*.jsonl
+phases/phase-5/production_run/*.log
+phases/phase-5/production_run/**/*.jsonl
+phases/phase-5/production_run/**/*.log
+
+# Phase 3R sandbox runtime artifacts (logs only; deliverable .md files ARE tracked)
+phases/phase-3R/experiment/*.log
+
+# macOS Finder text-clipping artifacts (created by drag-and-drop of selected text)
+*.textClipping
+
 # Python
 __pycache__/
 *.pyc

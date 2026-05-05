@@ -181,3 +181,212 @@ Expanded school-level enrichment scope from >18 schools (1,174 schools, 32 distr
 **Cost:** $15.23 in Haiku tokens + $11.32 in web search fees = **$26.55 total** for the 453-school batch.
 
 **Script change:** Added `--max-district-size N` flag to `pipeline/17_haiku_enrichment.py` so the size filter accepts a band (`>min AND <=max`). Existing `--min-district-size` semantics unchanged. The 32 districts with >18 schools previously enriched were skipped via the existing checkpoint mechanism in `data/enrichment_checkpoint.jsonl`.
+
+---
+
+## 2026-04-30 — Phase 5 Tasks 1 & 2: Layer 3 prompts extracted, district_context production query function written
+
+**Task 1 — Prompt extraction (`docs/receipts/phase-5/task1_prompt_extraction.md`).** The three Layer 3 system+user prompts that lived as inline f-strings in `phases/phase-4.5/test_results/round1_three_stage/run_round1.py` (the validated 50-school three-stage replay) are now versioned plaintext files in `prompts/`:
+
+- `prompts/layer3_stage0_haiku_extraction_v1.txt`
+- `prompts/layer3_stage1_haiku_triage_v1.txt`
+- `prompts/layer3_stage2_sonnet_narrative_v1.txt`
+
+Each file uses `===SYSTEM===` and `===USER===` section markers and named placeholders (`{school_name}`, `{district_name}`, `{nces_id}`, `{findings}`). The runner reads via `pipeline/layer3_prompts.py` (`load_stage0/1/2()` + `fill_user()`) which uses `str.replace()` rather than `str.format()` because the system prompts contain JSON examples with literal `{` and `}` characters — same convention already used by `pipeline/17_haiku_enrichment.py`.
+
+**Acceptance test results:** Byte-identity to the canonical inline constants is proven for all six strings (3 system + 3 user) by `phases/phase-5/acceptance_test_prompt_extraction.py`. A live 5-school smoke test against the loaded prompts produced **zero auto-check regressions** at $0.0953 total cost. The one Stage 0 drop delta on Halilts Elementary was Haiku non-determinism on date inference at temperature=1.0 (the model is asked to infer `~1985` from "approximately 40 years prior" relative to a 2024 filing) — not a prompt-extraction bug. The byte-identity test rules that out at the character level.
+
+**Why these names.** The files are prefixed `layer3_` to distinguish them from the existing pre-pivot single-stage Sonnet prompts (`prompts/sonnet_layer3_prompt_test_v1.txt` and `_v2.txt`), which were retained as the historical record of the architecture before the three-stage migration.
+
+**Task 2 — `district_context` propagation verified, production query function written (`docs/receipts/phase-5/task2_district_context.md`).** Inspection of all 25 Bellingham School District schools in MongoDB Atlas confirmed `district_context` is populated on every school with all six expected district findings — including all three Title IX-related findings (2023 criminal-charges resolution, 2025 federal lawsuit, 2026 bus-assault liability admission). The data-layer wiring established in Phase 4 Pass 1 works correctly; no fix needed.
+
+`pipeline/layer3_findings.get_findings_for_stage0(db, nces_id)` is the new production query function. It pulls both `context.findings` and `district_context.findings`, deduplicates by composite key `(source_url, date, category)` with a content-hash fallback for findings missing source_url, and prefers the district-level entry on collision (district framing aligns with Stage 2 Rule 7 attribution). Tested across 8 cases including the canonical Squalicum HS cross-context collision (the 2026-02-05 bus-assault liability article was independently extracted by both Pass 1 and Pass 2; dedup correctly drops the school-side copy) and a bogus-NCES-ID error path.
+
+**Why composite, not source_url alone?** Bellingham HS's `district_context` had two findings citing the same Cascadia Daily News URL (one summarizing the 2023 criminal-charges resolution, one summarizing a separate 2022 federal lawsuit covered in the same article). Source-url-only dedup would have incorrectly dropped one of these legitimate distinct findings. The (url, date, category) composite preserves both because their dates differ.
+
+**Phase 5 production blockers carried forward.** Per `phases/phase-4.5/exit.md`: Phase 3 rerun (absenteeism thresholds 30%/45%, discipline minimum-N 10→30), remaining sensitivity review (~370 findings), Batch API budget approval, builder sign-off on the 50-school three-stage report. None touched in Tasks 1 or 2.
+
+---
+
+## 2026-04-30 — Process learning: editorial review of dry-run narratives is mandatory before any full-batch run
+
+**What happened.** Phase 5 Layer 3 production launched a 5-school dry run as a technical validation, then proceeded to a full 2,532-school Phase A run without the builder reading the 5 narratives first. Phase A was killed mid-run after ~2,391 schools (the kill itself slipped: a SIGTERM round looked successful from the agent's perspective but the four shards survived for another ~16 minutes until SIGKILL — see the cost reconciliation entry below). The Sonnet batch for the remaining 1,770 narratives was paused before submission so the builder could read the dry-run output.
+
+**Decision: any phase that produces narrative output requires builder editorial review at the smallest unit (5 schools) before the full run.** This applies to Layer 3 (web context), the eventual Layer 2 (regression interpretation), and any future generative phase. Technical validation (byte-identity, no auto-check regressions, end-to-end pipeline runs) is necessary but not sufficient. Editorial validation — a human reading the narratives and confirming tone, framing, and content meet the project's editorial bar — must happen before scaling. The 5-school size is small enough that builder review fits in one sitting and large enough to surface tone or framing patterns the agent may have missed.
+
+**How to apply going forward.** Any phase exit document, runner script, or production task plan that involves AI-generated parent-facing narrative must include an explicit editorial-review gate after the smallest test unit. The gate is satisfied only by builder approval, not by automated checks. Phase 5 production is paused at this gate until builder reads `phases/phase-5/dry_run_narratives.md`.
+
+**Cost reconciliation from this same run.** Telemetry undercounted Haiku spend by ~25% because the runner's pricing constants (`HAIKU_INPUT_PER_M = 0.80`, `HAIKU_OUTPUT_PER_M = 4.00`) are Haiku 3.5 prices. Real Haiku 4.5 prices are $1.00 input / $5.00 output per MTok. Telemetry also confirmed (via empirical test call) that `response.usage.input_tokens` already includes system-prompt tokens, ruling out the system-prompt undercount hypothesis. Recomputed Haiku spend with correct prices: ~$18.94 (vs reported $15.15). Anthropic console showed ~$39 today; the residual ~$20 gap is unexplained from telemetry alone and may reflect non-script usage on the same billing window.
+
+**Prompt caching is not enabled.** The Layer 3 runner sends the full Stage 0/1/2 system prompts on every call. For the remaining 1,770 Stage 2 batch requests, enabling 1-hour cache writes on the Sonnet system prompt would save roughly $2.40; for any future Haiku Stage 0/1 work, 5-min cache writes on the two ~850-token system prompts would have saved roughly $3 on the run already completed. Both should be added before resuming.
+
+**Outstanding fixes before resuming.** (1) Update pricing constants in `pipeline/18_layer3_production.py` and `phases/phase-5/aggregate_production_stats.py` to Haiku 4.5 rates. (2) Add `cache_control` to the Stage 2 Sonnet system prompt (and to Stage 0/1 Haiku system prompts before any further Haiku runs). (3) Builder editorial review of the 5 dry-run narratives at `phases/phase-5/dry_run_narratives.md`. Only then submit the Stage 2 batch.
+
+---
+
+## 2026-04-30 (evening) — Dry-run v2 (5 schools) approved as representative of acceptable Stage 2 quality; full batch deferred pending Rule 15 decision
+
+**Schools.** Squalicum HS, Bainbridge HS, Echo Glen School, Phantom Lake Elementary, Juanita HS. Picked to exercise Title IX district-pattern multi-finding consolidation, death-circumstance suppression, large-district multi-finding, small-school edge case, and the original Sonnet-4.5 hallucination test case. Each had Stage 1 included findings already on disk in `phases/phase-5/production_run/stage1_results.jsonl`, so this run was Sonnet 4.6 batch only — no new Haiku spend.
+
+**Output.** `phases/phase-5/dry_run_narratives_v2.md` (Finder-readable), `layer3_narrative` written to MongoDB for the five NCES IDs. **Cost: $0.0310** (Sonnet 4.6 batch, 5 requests).
+
+**Pricing constants fixed.** `pipeline/18_layer3_production.py` and `phases/phase-5/aggregate_production_stats.py` now use Haiku 4.5 rates (`$1.00` input / `$5.00` output per MTok), verified against the Anthropic platform-docs pricing page. The earlier `$0.80`/`$4.00` constants were Haiku 3.5 rates copied unchanged from `run_round1.py`. All future cost telemetry on this codebase is honest.
+
+**Caching gap discovered.** Adding `cache_control: {type: ephemeral, ttl: "1h"}` to the Stage 2 Sonnet system block produced **zero cache hits** in the 5-school dry-run v2 (`cache_creation_input_tokens = 0`, `cache_read_input_tokens = 0`). Anthropic's prompt cache requires a minimum 1,024-token cacheable segment; the Stage 2 system prompt at ~1,000 tokens falls just under and the marker is silently ignored. The previously projected $2.40 savings on the 1,770-school batch will NOT materialize without restructuring the prompt — and findings JSON varies per school, so it cannot be cached. Decision for the full Stage 2 batch: proceed without caching. Projected total Sonnet cost for the remaining 1,770 schools: ~$11 (no cache, batch discount applied).
+
+**Editorial review findings — issues real but tractable.** Builder approved the v2 narratives as representative of acceptable Stage 2 quality. Five named issues to address before or after the full batch:
+
+1. **Stage 1 parent-relevance issue.** Some findings that pass Stage 1 triage do not clearly serve a parent making a school-decision question. Stage 1 currently filters routine governance, awards-only findings, and exoneration; it does not have a hard test for "would a parent considering this school for their child make a different decision based on this information?" That test exists in Stage 2's writing rules (Rule 10) but is not enforced upstream. Result: Sonnet receives findings it then has to write around. Fixable with a Stage 1 prompt revision; does not require rerunning Stage 0.
+2. **Temporal-language issue.** Stage 2 narratives occasionally insert hedging qualifiers not present in the source ("These remain allegations" in the Bainbridge HS principal-arrest paragraph; "spanning a period of time" in the Echo Glen narrative where the source had a specific date). The Stage 2 NO FABRICATION rule covers outcomes/resolutions but not metadata-style temporal hedges. Fixable with a Stage 2 prompt revision.
+3. **Squalicum framing observation.** The Title IX multi-finding consolidation reads correctly and the cross-context dedup collision (the Feb 2026 bus-assault article appearing in both `context` and `district_context`) is resolved cleanly. The framing observation is more about flow: four district-level findings present sequentially, all attributed "at the district level," which is accurate but reads repetitively. Stage 2 Rule 8 ("vary transitions") is technically satisfied but the cumulative effect at four district findings is heavier than the 50-school validation set tested. Worth a phrasing pass.
+4. **Echo Glen / juvenile facility issue.** Echo Glen School is a juvenile detention facility (already noted in `docs/harm_register.md` and excluded from the performance regression). The harm register also flagged "Non-traditional school narrative framing" as a Phase 5 to-implement item: juvenile detention facilities should NOT receive standard narrative treatment. The dry-run-v2 narrative for Echo Glen treats it like a regular school with multiple findings woven in. The fix is the school-type branching the harm register already specifies — Stage 2 should consult `school_type` (already on the document) and apply minimal-comparison, heavy-caveat framing for `institutional` category schools. This is the single largest editorial issue from tonight's dry run.
+5. **Pricing/caching from this same run.** Captured above. Both fixed in code; caching architecturally gated by the 1024-token minimum.
+
+**Decision deferred to tomorrow.** Two paths:
+- **Path A — proceed with full Stage 2 batch as-is.** Projected ~$11 to generate 1,770 narratives. Known issues are tractable in a follow-up pass on already-generated narratives (since Stage 0 and Stage 1 results are stored on disk and don't need to be re-run; only Stage 2 would be re-run after a Rule 15 / school-type-branching prompt revision).
+- **Path B — fix Rule 15 first** (proposed: an explicit Stage 2 school-type branch matching the harm register's "Non-traditional school narrative framing" entry, plus tightened temporal-language guard). Then run the full Stage 2 batch once. Higher up-front editorial work, single batch cost.
+
+The v2 dry-run output is approved as representative of acceptable Stage 2 quality; the known issues do not block proceeding. The choice between Path A and Path B is a sequencing question, not a quality question, and is for the builder to make.
+
+**Standing down for the night.** All Phase A processes confirmed dead. No Anthropic batches in flight. State on disk is clean and resumable: `checkpoint.jsonl` (2,427 schools), `stage1_results.jsonl` (1,794 queued for Stage 2), `stage2_batch_requests.jsonl` (1,794 prepared requests). MongoDB has `layer3_narrative` populated only for the 5 dry-run-v1 schools (Enumclaw — single PDC finding each) and the 5 dry-run-v2 schools (the editorial test set). All other 2,522 schools have no `layer3_narrative` field yet.
+
+---
+
+## 2026-05-01 — Dry-run v3 (50 stratified) and v4 (8 targeted) results, Stage 2 prompt versioned to v2 then v3
+
+**Dry-run v3 (50 stratified schools, Stage 2 v1 prompt).** Output at `phases/phase-5/dry_run_narratives_v3.md`. Cost: $0.2364 (mean $0.0047/school, median $0.0041, p90 $0.0082, max $0.0102 — substantially under prior $0.0062 estimate because most narratives are shorter than projected). Auto-checks flagged 10/50 schools but most flags are documented false positives (the `'at the school'` regex from the Phase 4.5 exit doc, plus `'Junior'` matching school names like "Sterling Junior High"). Real violations: 2 verb fabrications (`was fired` / `was terminated` not in source — Frontier MS and Central Valley Virtual Learning) and 3 grade-level identifier leaks (`'senior year'` carried through from a Toppenish district-level source finding to Garfield, Kirkwood, and Valley View Elementary). 4% real-violation rate.
+
+**Stage 2 prompt revised to v2 (`prompts/layer3_stage2_sonnet_narrative_v2.txt`).** v1 preserved unchanged as the historical record of the validated 50-school baseline. v2 adds:
+
+- **Rule 15 — Timeless past-tense framing.** Forbids present-tense status assertions ("remain allegations," "is ongoing," "no resolution has been reported") in favor of past-anchored framing ("the cited records do not reflect a resolution," "as reported in [year]," "available records as of [generation date] show no resolution"). Principle: every sentence should remain truthful at any future date the narrative is read.
+- **Rule 16 — Source-fidelity verbs for individual conduct.** Forbids substituting outcome verbs ("was fired," "was terminated," "resigned," "was dismissed," "was demoted," "was reassigned," "was disciplined," "was let go," "received a warning") unless the exact verb appears in Stage 1 source. Disposition-unclear cases get past-anchored framing rather than asserted dispositions.
+- **Rule 17 — Grade-level identifier redaction.** Replaces "senior year," "junior year," "eighth grader," "in [N]th grade," etc. with general references ("while a student," "during the student's enrollment"). Stage 2 must rewrite even when the source contains these — unlike Stage 1, which is a load-bearing factual-pass-through layer that cannot be expanded into rewriting work.
+- **Per-paragraph citations.** Each paragraph ends with `[Sources: URL1; URL2; URL3]` plain text. URLs come from each finding's `source_url` field. Stage 1 does not currently carry `source_url` in its included list; the v4 runner re-queries MongoDB at Stage 2 build time and matches Stage 1 `original_text` to deduped source `summary` to recover URLs. Findings with no URL render as `(one source unavailable)` so gaps are explicit.
+
+**Dry-run v4 (8 targeted schools, Stage 2 v2 prompt).** Output at `phases/phase-5/dry_run_narratives_v4.md`. Cost: $0.0865. Verification: Rule 17 fully eliminated grade-level leaks (Toppenish trio clean). Rule 15 fully replaced timeless-tense violations (Bainbridge `'These remain allegations'` gone; Phantom Lake's `'no resolution'` / `'ongoing'` patterns rewrote cleanly). Rule 16 reduced but did not eliminate verb fabrication (one residual hit: Garfield Elementary wrote "the superintendent **was fired** in late February 2025" where source said "the school board **terminated** the superintendent"). Citations rendered structurally (1:1 with paragraphs in all 8 narratives) but most contained `(one source unavailable)` because the runner's source-URL matcher used exact-match against summary text that contains `<cite index="...">` wrappers Stage 1 strips. Matcher patched in `phases/phase-5/dry_run_v4.py:_normalize_for_match` to strip `<cite>` tags and add a 100-char prefix-match fallback.
+
+**Decision: Rule 16 fired/terminated drift accepted as known residual.** "Was fired" and "was terminated" are substantively equivalent dispositions for the parent-reader's decision; the legal-risk delta between them is negligible because both describe an institutional choice to end employment in response to documented misconduct. No further iteration on Rule 16. The auto-check phrase list will continue to flag these substitutions at production scale; if the rate goes above ~10% of generated narratives, revisit. (Builder decision, 2026-05-01.)
+
+**Decision: Rule 4 strengthened with manner-of-death and location-of-death suppression in Stage 2 prompt v3 (`prompts/layer3_stage2_sonnet_narrative_v3.txt`).** Triggered by a Frontier MS narrative (v3 batch, Moses Lake) that contained "died following a drive-by shooting on West Loop Drive in Moses Lake" — manner of death plus location, both forbidden by the Rule 4 spirit but not caught by the existing phrase list (the regex covers "wooded area," "in the gymnasium," "on school grounds" but not "drive-by shooting" or named streets). Strengthening adds: "Suppress all manner of death (e.g., gunfire, vehicle accident, drowning, self-harm method, medical event, drug overdose) and all location of death. Report only the institutional response (e.g., grief support services provided) and the fact that a death occurred. Forbidden phrasings include: 'died following a [manner],' 'fatal [event],' 'killed in a [event],' '[manner]-related death.' Use only 'a student died' or 'the death of a student' followed by institutional response." This is the highest-stakes Rule 4 category (manner of death on a child) and the v3 strengthening makes the rule explicit rather than inferred.
+
+**Cumulative spend through dry-run v4: ~$19.50** (Phase A Haiku $18.94 corrected + Sonnet dry runs $0.10 v1 + $0.03 v2 + $0.24 v3 + $0.09 v4). Hard cap $50 still has $30 headroom for the full Stage 2 batch.
+
+---
+
+## 2026-05-02 — Layer 3 production complete: 1,794 v3 narratives written, full receipt at `docs/receipts/phase-5/task3_layer3_production.md`
+
+**Final-gate dry-run v5 PASSED both gates.** Frontier MS narrative under Stage 2 v3 prompt suppressed `'drive-by shooting'` and `'West Loop Drive'` and produced the required `"a student died...the district provided grief support services"` framing. Whatcom Middle (Bellingham) verified the citation matcher patch — 4/4 source URLs matched, every paragraph cites a real URL (no `(one source unavailable)` cells). v5 cost $0.0244.
+
+**Full Stage 2 batch submitted and completed**, `pipeline/19_layer3_stage2_v3_batch.py` against `msgbatch_014HnVdUAUnajrNzycW9uAiG`. 1,792 schools, 100% success rate, **zero errors, $12.69 total**. Per-paragraph citations rendered for every narrative. URL enrichment at scale: 4,561 / 4,563 findings matched (99.96%) via the `<cite>`-tag-stripping + 100-char-prefix fallback patch in the runner.
+
+**One client-side recovery during the run.** The script crashed once on `client.messages.batches.retrieve()` with a 404 NotFoundError ~20 seconds after `create()` returned the batch ID. Anthropic API read-after-write indexing lag — the batch was server-side-alive and unaffected. Relaunching the script picked up the saved batch_id from `phases/phase-5/production_run/stage2_v3_batch_id.txt` and resumed polling cleanly. The runner should add retry/backoff on transient `retrieve` failures so this can't crash an unattended run; deferred fix.
+
+**Final MongoDB state:** 2,427 / 2,532 schools have `layer3_narrative` populated. Of those: 1,794 with full v3 Sonnet narratives + per-paragraph citations (`status=ok`, `prompt_version=layer3_v3`); 412 with the canonical "No significant web-sourced context..." text (`status=stage1_filtered_to_zero`); 221 with the same fallback text (`status=no_findings`). The remaining 105 schools have no `layer3_narrative` field — these are the schools Phase A never reached when the run was halted at 2,427/2,532. Phase A is resumable from `checkpoint.jsonl`; a follow-up run on the missing 105 would cost roughly ~$1.40 to complete coverage. Not blocking the current builder review.
+
+**Random 30-school spot check on production output:** 30/30 narratives rendered citation blocks; zero hits on Rule 4 forbidden phrases (drive-by shooting / fatal / overdose / died following a); zero hits on Rule 17 forbidden phrases (senior year / junior year / sophomore year / freshman year); zero hits on Rule 15 forbidden phrases (remain allegations / no resolution has been reported / remains an active). v3 prompt holding at scale.
+
+**Total Layer 3 production spend: ~$32.30** (Phase A Haiku $19.15 + dry runs $0.46 + full Stage 2 $12.69). Came in at 65% of the $50 hard cap.
+
+**Stratified spot-check sample written to `phases/phase-5/spot_check_sample.md`** for builder editorial review. 25 schools: 10 big-district + 10 mid-district + 5 small-district, all outside the 50-school Phase 4.5 validation set, with ≥3 schools from districts that have known recent incidents (sensitivity=high or category=investigations_ocr findings in district_context). Reproducible via `random.seed(20260430)`.
+
+**Receipt:** `docs/receipts/phase-5/task3_layer3_production.md` covers full batch outcomes, six receipt-mandated sample schools (Bainbridge HS, Sehome HS, Squalicum HS, Juanita HS, Phantom Lake Elementary, Fairhaven Middle), aggregate stats, error summary, files touched, and follow-up items.
+
+---
+
+## 2026-05-02 — Spot-check sample approved; two carry-forward observations
+
+Builder reviewed `phases/phase-5/spot_check_sample.md` (25 stratified schools) and approved the v3 production output as shippable. Quality holds across the sample. Two non-blocking observations captured for future iteration:
+
+**(a) Named complainant organizations getting genericized.** Inglewood Middle School (Issaquah) narrative renders "a nonprofit legal team" where the v2 Juanita HS narrative explicitly named "StandWithUs" — both findings cite the same organization. Stage 2 Rule 2 forbids individual names but doesn't speak to organizational complainants; Sonnet appears to be erring toward genericization for both. Naming the organization gives parent readers civic-information value (who is making the claim, what is their public posture) that genericization removes. Future v4 refinement candidate: distinguish individual personal names (always strip) from named complainant organizations (preserve when they are public-facing entities making advocacy claims). Not blocking; current behavior is conservative-safe.
+
+**(b) Same-district narrative duplication is structurally correct but visually heavy.** Schools in Bethel, Tahoma, Stanwood-Camano, and Toppenish (and any other district with ≥1 district-level finding shared across schools) produce near-identical paragraphs across all schools in the district. This is the intended behavior of Stage 2 Rule 7 (district attribution propagates to every school in the district) and Phase 4 Pass 1 (district_context replicated to all schools). The data layer is correct. The visual / UX problem belongs to the Phase 6 frontend: the briefing page should detect district-context paragraphs (already framed with "at the district level"-class language) and either visually distinguish them from school-specific findings, collapse repeated district context across same-district school pages, or otherwise signal to the parent that this is district-wide context rather than building-specific. Phase 6 design problem, not a Phase 5 prompt or pipeline issue.
+
+---
+
+## 2026-05-02 — Phase 5 closure: full WA coverage (2,532/2,532), Layer 3 production DONE
+
+**Resume Phase A on the 105 unprocessed schools.** Same 4-shard architecture as the killed initial run, ~7 minutes wall-clock to completion (process the killed run never reached). Status distribution of the 105: 68 queued for Stage 2, 26 stage1_filtered_to_zero (canonical fallback narrative written directly), 11 no_findings (canonical fallback written directly). Cost: $0.71 Haiku.
+
+**Final Stage 2 batch on the 68 newly-queued schools.** Submitted as `msgbatch_01ResB16DcKqAFDHiUzis38Q` via `pipeline/19_layer3_stage2_v3_batch.py` (which correctly skipped the 1,794 schools already on layer3_v3 and picked up only the 68 from the resume run). 100% success, zero errors, ~2 minutes processing. Cost: $0.47. URL enrichment 155/155 = 100%.
+
+**Final MongoDB state — full coverage achieved:**
+- 2,532 / 2,532 schools have `layer3_narrative` populated (was 2,427 / 2,532 before resume).
+- 1,862 schools on `layer3_v3` with full Sonnet narratives + per-paragraph citations (was 1,794, +68).
+- 232 with `status=no_findings` (canonical fallback text).
+- 438 with `status=stage1_filtered_to_zero` (canonical fallback text).
+- 0 schools without a `layer3_narrative` field.
+
+**Total Phase 5 / Layer 3 production spend: $33.48** (Phase A initial $19.15 + Phase A resume $0.71 + dry runs v1–v5 $0.46 + full Stage 2 $12.69 + final Stage 2 $0.47). 67% of the $50 hard cap.
+
+**Receipt finalized at `docs/receipts/phase-5/task3_layer3_production.md`.**
+
+**Phase 5 declared DONE.** No Phase 6 frontend work, no Layer 2 design, no Phase 3 rerun in scope. The next phase will be triggered by separate builder approval.
+
+---
+
+## 2026-05-02 — Positive-content rule retired (Stage 1 v2 promoted to canonical), 185 schools regenerated; Phase 5 RE-OPENED pending rule audit
+
+**Diagnostic finding.** Full-population scan (`phases/phase-5/positive_content_diagnostic.md`) found 185 schools whose raw Phase 4 findings contained positive-content vocabulary (Washington Achievement Award, Blue Ribbon, Schools of Distinction, Title I Distinguished, dual-language program designations, Teacher of the Year, FIRST robotics, state/national academic competitions, etc.) — and just 1 of those 185 schools had positive content in its final `layer3_narrative`. The 184-school filter-out was attributable almost entirely to one categorical rule on `prompts/layer3_stage1_haiku_triage_v1.txt:37`: *"Awards, recognitions, and positive achievements: exclude unless directly relevant to an adverse finding."* The rule contradicts foundation.md's explicit mission language to *"recognize real achievement"* and *"showcase gains that current ratings miss, especially where educators outperform demographic expectations."*
+
+**10-school v2 test (`phases/phase-5/positive_content_test_v1.md`).** Stage 1 v2 (rule removed) + Stage 2 v3 unchanged. Random sample with `random.seed(20260502)`. 10/10 succeeded. Stage 1 v2 inclusions ranged 3–8 per school. 9 of 10 narratives carried both adverse and positive content; the tenth (Stevens Elementary, Spokane) had only adverse content survive Stage 1's recency rules. Cost $0.16. Builder approved the editorial flow as shippable.
+
+**Decision: Stage 1 line-37 rule retired permanently.** v1 stays in `prompts/` as the historical record of what produced the original 1,862 production v3 narratives. v2 (`prompts/layer3_stage1_haiku_triage_v2.txt`) is now canonical.
+
+**Stage 1 v2 promoted to canonical.** `pipeline/layer3_prompts.py` updated: `STAGE1_FILE` now points to v2; `load_stage1()` returns v2 by default; `load_stage1_v1()` added for historical reproduction; `load_stage1_v2()` retained as alias for callers that already named the version explicitly.
+
+**Production rerun complete.** `phases/phase-5/regenerate_184_with_stage1_v2.py` re-derived the affected pool from a full-population MongoDB scan (187 schools — slight drift from the original 184 figure due to MongoDB state changes during the day; same vocabulary) and processed all of them through Stage 1 v2 + Stage 2 v3 (`msgbatch_016aKDCXANFiYgxpwPavcpJb`). Results:
+- **185 / 187 narratives regenerated** and written to MongoDB with `prompt_version=layer3_v3`, `stage1_prompt_version=layer3_v2`, `regenerated_2026_05_02=true`.
+- **2 / 187 had Stage 1 v2 include zero findings** (the schools whose only positive content was collateral-dropped at Stage 0 by the conduct-date or dismissed-case rule — those are not affected by line-37 removal). Their MongoDB state was left unchanged.
+- **0 errors.**
+- **93 / 185** regenerated narratives now contain a positive-content vocabulary match in their final text (50% — the rest had positive Phase 4 content but Stage 1 v2 still excluded it under recency rules, or Sonnet rephrased it past the keyword scan).
+- **Cost: $2.60** (Haiku $1.07 + Sonnet batch $1.53). Under the $3 expected cap.
+
+**Final MongoDB coverage state (post-regen):**
+- **1,885 schools** on `status=ok, prompt_version=layer3_v3` (was 1,862; gained 23 from former stage1_filtered_to_zero schools that now pass Stage 1 v2). Of those 1,885, **185 are regenerated under Stage 1 v2** with `stage1_prompt_version=layer3_v2`; the other 1,700 are the original Stage 1 v1 batch, unchanged.
+- **415 schools** on `status=stage1_filtered_to_zero` (was 438; lost 23 to ok).
+- **232 schools** on `status=no_findings` (unchanged).
+- **Total: 2,532 / 2,532**, full WA-state coverage maintained.
+
+**Editorial voice decision.** Sonnet's emergent transitional language across mixed-content narratives — "On a positive note specific to [school]," "Among facility improvements at [school]," "On the academic front" — is acknowledged as a deliberate platform voice choice rather than a defect. The transitions help parents pivot between adverse and positive content within a single narrative. Not changed in v2.
+
+**Open item carrying forward to rule audit: positive-content recency calibration.** The 10-year recency window in Stage 1 was designed against adverse content where parental relevance decays as institutional response ages out. For substantive positive recognitions (National Blue Ribbon, Schools of Distinction, civil-rights / equity awards, sustained academic improvement designations), the relevance horizon may legitimately be longer — a Blue Ribbon designation from 2009 still tells a parent something about institutional capacity in a way that a 2009 administrator-misconduct case does not. Haiku v2 demonstrated emergent stretching of the window during the test run, with rationales like "exceeds 10-year recency window but represents sustained measurable quality indicator." Whether to formalize this asymmetric calibration (separate windows for positive vs adverse, or a "sustained quality" exception) is a rule audit decision.
+
+**Phase 5 RE-OPENED pending the full rule audit.** Phase 5 was previously declared closed. The line-37 finding showed that an editorial rule can ship in production while quietly contradicting the project's mission. A full review of all editorial rules across Stage 0 / Stage 1 / Stage 2 prompts for coherence with `docs/foundation.md` and `docs/harm_register.md` is now a Phase 5 gate. Specific candidates to audit beyond the already-revised line 37: the 10-year adverse / 5-year allegation recency windows, the stage1 routine-governance exclusion's edge cases, the death-circumstance suppression scope, the source-quality-awareness rule (Stage 2 Rule 14) and how it interacts with petition-source findings. Phase 5 closes after the audit completes and any consequent revisions are implemented.
+
+**Receipt updated.** `docs/receipts/phase-5/task3_layer3_production.md` reflects the new headline numbers and the regeneration footnote.
+
+---
+
+## 2026-05-02 — Audit Coverage Gap 4 closed via foundation.md update (no rule change to Stage 2)
+
+**Diagnostic.** The rule audit (`docs/rule_audit_2026_05.md`) flagged Coverage Gap 4: foundation.md's commitment that the AI "should consider whether the school or district may have been operating under competing legal mandates — IDEA, Section 504, due process, FAPE requirements" had no implementing rule in Stage 2. To test whether a rule was actually needed, a keyword scan over the 1,885 status=ok narratives in MongoDB found 261 narratives matching disability / restraint / seclusion / special-ed / IEP / Section 504 / FAPE / IDEA / due process keywords (`phases/phase-5/discipline_legal_context_sample.md`, full text of 10 random examples).
+
+**Finding.** Source-language framing already carries the relevant legal context for substantive disability-rights enforcement findings. DOJ settlement language, state AG investigation findings, OCR resolution agreements, and similar formal sources describe violations using legal terminology that anchors the framework — examples from the sample include *"inappropriately and repeatedly secluded and restrained students with disabilities outside of emergency situations as required by law"* and *"failed to provide legally required accommodations... including flexible restroom breaks, modified work schedules."* The platform's role is faithful reporting of these source characterizations; imposing an additional Stage 2 rule that prompts Sonnet to layer in IDEA / 504 / FAPE framing would be grafted onto findings about clear violations and off-topic on findings that incidentally mention disability-rights vocabulary.
+
+**Decision: do not add an IDEA / 504 / FAPE legal-context rule to Stage 2.** The original foundation-document design implication was based on a hypothesized failure mode the production output didn't exhibit. Where source coverage is inadequate, the gap is at the data-source layer (which sources the platform ingests, how thoroughly), not the narrative layer.
+
+**Foundation document updated.** `docs/foundation.md` Section "Interpreting Discipline and Safety Data: Legal Constraints as Context" — the "Design implication" paragraph was rewritten to reflect that source language carries legal context implicitly and the platform reports findings using the source's legal characterization rather than imposing structural framing. The Bellingham bus-assault illustrative example is preserved as motivating context. A timestamped revision note marks the 2026-05-02 update.
+
+**Audit document updated.** `docs/rule_audit_2026_05.md` Coverage Gap 4 marked RESOLVED with citation to this diagnostic and the foundation revision. The corresponding Must-fix item #5 is also marked RESOLVED.
+
+**Net effect on the Phase 5 rule-audit gate.** Must-fix list shrinks from 5 to 4. Remaining must-fix items: positive-content recency calibration (A1), non-traditional school narrative framing (Coverage Gap 2), three-layer trust model disclaimer (Coverage Gap 1), and organizational name handling (A2).
+
+---
+
+## 2026-05-02 — CLAUDE.md updated to v4
+
+CLAUDE.md updated to v4. Added two new top-level sections — "When Expected Behavior Doesn't Match Reality" and "Destructive Operations" — to close gaps surfaced by review of the PocketOS database-deletion incident (2026-04-24). Trimmed verbose pedagogical content (Wrong/Right examples in Logging, Comments, and Git commits; Health Check sample output; 11pm Tuesday framing; redundant non-coder maintainability framings; "No magic" line). Removed "What This Project Is NOT" section (framing lives in foundation.md). Renamed "Non-Coder Maintainability" to "Code Conventions" for accuracy. Merged Module Headers and Trace Tags into single "Repo Navigation Conventions" subsection. Compressed Comments subsection. Net file size reduction roughly 35%.
+
+---
+
+## 2026-05-02 — Editorial decision: OCR investigations into trans-athlete policies remain in narratives
+
+The U.S. Department of Education's Office for Civil Rights opened Title IX investigations into multiple WA districts (Sultan, Vancouver, Tacoma, Lake Washington, others) in 2025-2026 over policies allowing trans students to compete on sports teams aligned with their gender identity. These are politically-motivated coordinated multi-district enforcement actions, not substantive Title IX accountability findings.
+
+**Decision: investigations stay in narratives with neutral institutional-investigation framing.** Suppressing politically-motivated federal investigations would itself be a political act and would conceal documented public-record information from parents. Parents interpret these findings differently based on their values; some read the investigations as institutional concern, others as positive signals about districts protecting trans students. Neutral reporting serves both readings.
+
+**Stage 2 v4 candidate rule (separate from this decision):** when source describes the school or district as one of multiple entities subject to a coordinated investigation or enforcement action, narrative should surface coordination context explicitly (e.g., "one of N educational entities subject to this investigation"). This applies to OCR trans-policy investigations and to any future coordinated actions. Captures coordination as structurally relevant context without editorializing on the political character of any specific action.
+
+Manual MongoDB edits to add this framing were considered and rejected. The pipeline is the platform's authorship process; editorial framing changes happen through prompt revision and regeneration. Rule will be implemented in Stage 2 v4 alongside other audit-driven additions.
+
+**Editorial principle: the platform commits to factual reporting of investigations regardless of political character.** The neutrality commitment serves parents across the values spectrum.
