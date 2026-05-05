@@ -53,6 +53,8 @@ docs/               # Methodology, data governance, build log
 
 **Dependency pinning:** `requirements.txt` with exact versions (`pandas==2.2.1`, not `pandas>=2.0`). A `pip install` today must produce the same result six months from now.
 
+**Schema keys:** School documents are keyed on `_id` (12-char NCESSCH string). There is no separate `nces_id` field.
+
 **Git commits:** Every commit message explains what changed AND why.
 
 ### Repo Navigation Conventions
@@ -92,6 +94,10 @@ The following situations all trigger STOP AND REPORT:
 - A retry of an operation produces different results than the first attempt
 
 In any of these situations, CC's default action is to stop, report what was expected versus what happened, and wait for builder direction.
+
+## Pre-Execution Review
+
+For substantive new work — API ingestion, schema-shaped writes, anything where mid-run discovery would be costly — CC surfaces ambiguities, conflicts, and silent assumptions before executing. Builder responds, then CC proceeds.
 
 ## Destructive Operations
 
