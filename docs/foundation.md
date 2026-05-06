@@ -1,6 +1,6 @@
 # School Daylight
-### Foundation Document v0.4
-### April 2026
+### Foundation Document v0.4.1
+### April 2026 (methodology section updated May 2026)
 ### Orianda Guilfoyle
 
 ---
@@ -126,14 +126,41 @@ All data is stored in **MongoDB Atlas** with pre-calculated percentiles (school 
 
 ### Comparison Engine
 
-For every metric, the system calculates where a school sits relative to four benchmarks:
+For every metric, the system reports where a school sits relative to four benchmarks: its own district, its state, the national average, and a peer cohort of structurally similar schools. The fourth benchmark is the methodologically substantive one. State averages combine Mercer Island and Wapato in a single number; comparing an individual school to that average tells a parent almost nothing about whether the school is doing well for the population it serves. Peer-cohort comparison is what makes the comparison meaningful. Existing tools like GreatSchools rely on state-average comparison and inherit this limitation directly.
 
-1. Its own district
-2. Its state
-3. The national average
-4. Schools with similar demographics (Title I status, enrollment size, locale, FRL percentage)
+#### From regression to peer cohorts
 
-The fourth comparison is critical. A Title I school in rural Arkansas should not be benchmarked raw against suburban Bellevue. Peer-normed comparison is what makes flags meaningful.
+The original design used a per-level linear regression of academic proficiency against free-and-reduced-price-lunch (FRL) percentage to predict expected performance and flag schools above or below the regression line. As work on the 2023-24 Washington data progressed, three weaknesses with FRL became unavoidable:
+
+- Post-COVID waiver expiration. During the pandemic, USDA waived income verification entirely; every student qualified for free meals regardless of household income. The waiver expired in 2022, but reporting practices during the transition vary by district, and post-2022 FRL data is no longer the clean income signal it was pre-2020.
+- Stigma-driven underreporting at higher grade levels. Middle and high school students return free-lunch forms at materially lower rates than elementary students, producing systematic under-coverage that worsens with grade level.
+- Community Eligibility Provision distortion. CEP allows high-poverty schools to offer universal free meals without individual applications, causing reported FRL to approach 100% regardless of actual household income. Washington's distribution shows this effect is contained (only 15 schools above 95% FRL, all in genuinely high-poverty communities), but the signal is structurally compromised in states with higher CEP adoption.
+
+Together these weaknesses meant single-variable regression against FRL — a defensible methodology in the 2010s — was no longer rigorous enough for a tool meant to interpret post-COVID data honestly. The methodology was redesigned around peer-cohort comparison.
+
+#### Choosing a methodology
+
+A survey of published similar-school methodologies from state education agencies that have addressed this question publicly — New York (NYSED), Ohio, Texas, and Nebraska — together with the federal IES / REL Central guide *A Guide to Identifying Similar Schools to Support School Improvement* (2021), shaped the choice. Three findings drove the decision:
+
+- NYSED's cluster-based grouping was rejected for the boundary-effect problem NYSED itself acknowledges: two structurally similar schools can land in adjacent clusters and never be compared.
+- Texas's exclusion of academic achievement from similarity was adopted as a methodological commitment, for reasons explained below.
+- Nebraska's nearest-neighbor methodology was selected as the base. It is the most thoroughly documented of the four (a 2019 technical report with 27 variables and explicit rationale for each), uses Euclidean distance after z-score standardization (interpretable to a reviewer), segments by school level, and adapts cleanly to Washington with documented deviations.
+
+The decision to exclude academic achievement from the similarity calculation deserves a fuller explanation, because it is the choice that makes peer comparison substantive rather than circular. A naive peer-school methodology might match each school to other schools that perform similarly on test scores. This sounds reasonable but defeats the purpose. A school that underperforms its structural peers gets matched to other underperformers and looks average against them. A school that outperforms gets matched to other outperformers and also looks average. The very signal a parent is trying to find — whether the school is doing better or worse than would be expected for the population it serves — is compressed toward zero by the matching itself. The peer cohort has to be a control group: schools matched on the structural conditions (demographics, community context, staffing patterns, finance) that a school does not choose, against which the school's outcomes can be meaningfully compared. Including achievement in the matching collapses the control group into the outcome variable. The Texas-style commitment to exclude achievement from similarity is what enables the comparison to do real work. Empirical sensitivity analysis on the Washington data confirms this is not a hypothetical concern: including achievement in similarity changes a school's peer cohort substantially, with mean Jaccard overlap of roughly 0.40 between achievement-included and achievement-excluded variants — meaning approximately 6 of 20 peers in common rather than 20 of 20.
+
+#### The Washington implementation
+
+The v1 implementation uses 16 variables for elementary, middle, and other-level schools and 17 for high schools (graduation rate added). Variables are drawn from federal Census ACS community data (median household income, Gini index, labor force participation, unemployment rate, population density, geographic land area), Washington OSPI school-level demographics (FRL, percent non-white, EL, SPED, homelessness, migrant, chronic absenteeism), structural variables (enrollment, average teacher experience derived from OSPI's binned distribution), and a district-level finance variable (average teacher base salary). Each school is matched to its 20 nearest neighbors within level using Euclidean distance after z-score standardization.
+
+Deviations from Nebraska are documented in a separate methodology brief. The most consequential is the substitution of average teacher salary for Nebraska's three property-tax-based finance variables (land valuation, per-pupil cost by ADM, total receipts). Washington's post-McCleary school finance structure differs materially from Nebraska's: the state assumed primary funding responsibility after the 2012 McCleary Supreme Court decision and the 2017 HB 2242 implementation, with state sources now providing approximately 73 percent of district revenue. Local enrichment levies are capped, and regionalization factors phased in starting 2018-19 adjust state allocations upward for higher-cost-of-living areas. Teacher salary captures the substantive post-McCleary mechanism (largest expenditure category, where regionalization and levy supplementation flow most directly) and is intuitively meaningful to parents.
+
+The methodology draws on published academic research, including Knight et al. on post-McCleary Washington school finance, Reardon and the Stanford Educational Opportunity Project on demographic factors in test-score measurement, and Augustine et al. on discipline policy variation across districts. An independent academic statistician will review the methodology, the variable selection, and the threshold calibrations before launch. The methodology brief, the variable decision matrix, and the reviewer questions are public alongside the code.
+
+#### What the comparison enables
+
+Each school's chronic absenteeism, discipline, academic performance, and other indicators are reported alongside the median for its 20 peer schools, with the school's position within the cohort distribution. A school that is more than three standard deviations from the cohort mean on any indicator triggers a standout signal, framed as "this stands out and may be worth understanding" rather than "this school is failing." Three named peer schools are surfaced in each briefing, with the variables used for matching, so domain experts (district researchers, school administrators, journalists) can audit peer assignments by inspection.
+
+This is what peer comparison enables: a Bellingham middle school with 44% FRL and elevated chronic absenteeism is compared to other suburban middle schools in mid-size districts with similar demographic mixes — not to a state average that combines downtown Seattle, suburban Bellevue, and rural reservation schools in one number. The comparison can do substantive work because the structural differences are already controlled for in cohort selection. Differentials that emerge from the comparison reflect something other than demographics, which is exactly what the briefing is meant to surface.
 
 ### Flag Layer
 
@@ -148,15 +175,15 @@ Green / yellow / red indicators based on research-informed thresholds, not arbit
 
 A GreatSchools 9 at a Bellevue school with 10% free/reduced lunch is demographics working as predicted. A GreatSchools 9 at Fairhaven with 45-50% economically disadvantaged students is educators outperforming what poverty rates would predict. These are fundamentally different achievements, and no existing tool distinguishes between them.
 
-The briefing compares each school's academic performance against what its demographic profile would predict, and flags the result:
+The briefing compares each school's academic performance against the median of its peer cohort — the 20 structurally most similar schools — and flags the result:
 
-- 🟢 **Outperforming demographics:** Scores significantly exceed what poverty rate, FRL percentage, and demographic composition would predict. Translation for parents: "The educators in this building are doing something right. This school is punching above its weight."
-- 🟡 **Performing as expected:** Scores track with the school's demographic profile. Neither a positive nor a negative signal; it's the baseline.
-- 🔴 **Underperforming demographics:** Scores fall significantly below what the school's resources and demographics would predict. A school in an affluent area with high per-pupil spending and low poverty that still scores mediocre is a red flag the current rating systems actively hide. Those kids should be thriving given the advantages they arrive with.
+- 🟢 **Outperforming demographics:** Scores significantly exceed those of the school's peer cohort — schools serving structurally similar populations. Translation for parents: "The educators in this building are doing something right. This school is punching above its weight."
+- 🟡 **Performing as expected:** Scores track with the school's peer cohort. Neither a positive nor a negative signal; it's the baseline.
+- 🔴 **Underperforming demographics:** Scores fall significantly below those of the school's peer cohort. A school in an affluent area with high per-pupil spending and low poverty that still scores mediocre — when its peer cohort is also affluent and well-resourced — is a red flag the current rating systems actively hide. Those kids should be thriving given the advantages they arrive with.
 
 This flips the segregation argument into something actionable. Instead of just proving that ratings reflect wealth (the critique), the tool shows parents where ratings *don't* reflect wealth — and those schools are where the strongest teaching is happening. It's the SchoolSparrow insight operationalized: the schools that deserve recognition are the ones beating expectations, not the ones coasting on zip code.
 
-This flag requires comparing each school's proficiency/growth scores against a predicted score based on FRL percentage, locale, and enrollment demographics. The prediction model doesn't need to be complex — a regression against FRL percentage alone explains 70-80% of variance in test scores nationwide (the same research that indicts GreatSchools). Schools significantly above that regression line are outperforming. Schools significantly below it are underperforming.
+This flag compares each school's proficiency and growth scores against the median for its peer cohort — the 20 structurally most similar schools across demographic, community, and structural variables (see Comparison Engine above). A school that performs materially above its peer cohort is outperforming what would be expected for the population it serves; a school materially below is underperforming. The peer-cohort approach replaces an earlier regression-based design that became insufficiently rigorous after 2022 for the reasons documented above.
 
 Every flag includes:
 - What the number is
@@ -269,7 +296,7 @@ Parents can submit updates after visiting a school or attending a board meeting:
 A single document (web page, optionally downloadable) using **progressive disclosure**: a 2-3 sentence headline summary at the top ("Here's what stands out"), with expandable detail sections below. Modeled on the CMS hospital comparison pattern — show methodology, let users drill down, be explicit about update cadence and peer grouping. Contains:
 
 1. **Rating context:** What GreatSchools/Niche/U.S. News say, what those numbers measure, and where they diverge from each other
-2. **Academics in context:** Proficiency and growth scores benchmarked against district, state, and demographic peers. Includes the demographic-adjusted performance flag: is this school outperforming, meeting, or underperforming what its poverty rate would predict? This is the single most important insight in the briefing, separating schools where educators are genuinely strong from schools where high scores simply reflect affluent zip codes.
+2. **Academics in context:** Proficiency and growth scores benchmarked against district, state, and the school's peer cohort. Includes the demographic-adjusted performance flag: is this school outperforming, meeting, or underperforming what would be expected given the population it serves? This is the single most important insight in the briefing, separating schools where educators are genuinely strong from schools where high scores simply reflect demographic gravity.
 3. **Demographics:** Who attends, how that's changed, and how it compares to the area
 4. **Staffing and resources:** Student-teacher ratio, counselor ratio, teacher certification, per-pupil spending, flagged against meaningful benchmarks
 5. **Strengths and recognition:** Grants funded, educator awards, program designations (Blue Ribbon, PBIS, restorative justice), DonorsChoose activity, community investment signals like levy passage. What's working.
@@ -336,7 +363,7 @@ No VC funding required. No enterprise sales. No paywalled features. The app is f
 | **State dashboards** (OSPI, CA DataQuest, etc.) | Publish CRDC and state data through compliance portals. | Built for researchers, not parents. Government-grade interfaces. |
 | **Schoolytics** | Internal dashboards for educators: attendance, behavior, SEL. | Sold to districts. Parents can't access. |
 
-**The gap:** No consumer-facing tool pulls CRDC data, combines it with state metrics, contextualizes it against meaningful peers, flags anomalies with research-backed thresholds, checks local news for reputation signals, and presents it all to a parent in plain language with specific questions to ask. And critically: no tool tells a parent whether their school's scores reflect good teaching or just a wealthy zip code — the demographic-adjusted performance flag that separates genuine quality from demographic gravity. That is what School Daylight does.
+**The gap:** No consumer-facing tool pulls CRDC data, combines it with state metrics, contextualizes it against a structurally meaningful peer cohort, flags anomalies with research-backed thresholds, checks local news for reputation signals, and presents it all to a parent in plain language with specific questions to ask. And critically: no tool tells a parent whether their school's scores reflect good teaching or just demographic gravity — the demographic-adjusted performance flag that separates genuine quality from the structural advantages of an affluent zip code. That is what School Daylight does.
 
 ### Prior Art: What's Been Built and What Died
 
@@ -378,11 +405,11 @@ These risks were identified through competitive research and stress-testing the 
 
 ### 1. Statistical Methodology Requires Independent Review
 
-The builder is not a statistician. The comparison engine uses a per-level linear regression (elementary, middle, high) against free/reduced lunch percentage to predict academic performance and flag schools as outperforming, meeting, or underperforming demographic expectations. This is the single most consequential calculation in the product: a school labeled "underperforming demographics" when the model is miscalibrated suffers reputational harm based on a math error, not a real failing. Similarly, discipline disparity ratios, chronic absenteeism thresholds, and peer cohort matching all involve statistical choices with real-world consequences for schools and communities.
+The builder is not a statistician. Several decisions in the comparison engine carry real consequences if miscalibrated: the choice of variables in the peer-cohort similarity index, the handling of redundancy among correlated variables, the choice of distance metric and cohort size, the threshold for flagging schools as outperforming or underperforming their peers, the minimum subgroup size for discipline disparity ratios, and the threshold structure for flags like chronic absenteeism. A school labeled "underperforming peers" when the methodology is miscalibrated suffers reputational harm based on a math error, not a real failing.
 
-A concrete example: the per-level regression treats all elementary schools as one population. But a K-2 school and a K-6 school face structurally different testing populations. If the model doesn't account for grade-span differences within the "elementary" category, it could systematically misclassify certain schools. The builder wouldn't catch this because it requires statistical expertise to recognize and correct.
+A concrete example from Phase 3R: empirical analysis of the variable correlation matrix surfaced four redundancy clusters that an unaided builder could easily have missed. The income/education three-way correlation (per capita income, median household income, percent with bachelor's degree, all correlated above 0.77) would have over-weighted the underlying dimension under Euclidean distance. Total population and population density correlated above 0.85, near-tautologically at the Washington scale. These were resolved by consolidating to a single representative variable per cluster, rather than dropping the dimension entirely or switching to a more sophisticated distance metric. The decision required statistical judgment beyond what a non-statistician would reasonably make alone.
 
-**Design response:** A qualified statistician will review the regression methodology, threshold calibrations, peer cohort definitions, and disparity ratio calculations before launch. An academic sociologist with quantitative methods expertise has agreed to review. The review will cover: whether the FRL-only regression is sufficient or needs additional covariates, whether the per-level split adequately controls for grade-span variation, whether the minimum-N threshold for disparity ratios is appropriately set, and whether the chronic absenteeism thresholds reflect the post-COVID distribution. No briefings will be published until this review is complete. The tool's credibility depends on the statistical layer being defensible to researchers, not just plausible to a general audience.
+**Design response:** A qualified independent statistician will review the methodology before launch. An academic with quantitative methods expertise has agreed to review. The review will cover the variable selection (whether the 16/17-variable consolidated set is sufficient, whether additional variables should be added or excluded), the redundancy handling (whether consolidation was the right call versus alternative approaches like Mahalanobis distance), the K=20 cohort size choice (whether stability across K=10/20/30 is sufficient defense), the achievement-exclusion commitment (whether the empirical sensitivity findings adequately address the methodological argument), the disparity ratio minimum-N threshold, and the chronic absenteeism flag thresholds in light of the post-COVID distribution shift. The methodology brief, the variable decision matrix, and the reviewer questions are public alongside the code. No briefings will be published until this review is complete.
 
 ### 2. CRDC Data Is Structurally Late and Noisy
 
