@@ -67,7 +67,7 @@ def load_assessment(schools, lookup, logger):
             if org_level != "School" or group_type != "All" or grade_level != "All Grades":
                 continue
 
-            district_code = (row.get("DistrictCode") or "").strip()
+            district_code = (row.get("DistrictCode") or "").strip().zfill(5)
             school_code = (row.get("SchoolCode") or "").strip()
             ncessch = lookup.get((district_code, school_code))
 
@@ -151,7 +151,7 @@ def load_growth(schools, lookup, logger):
                 if org_level != "School" or group_type != "AllStudents" or grade_level != "All Grades":
                     continue
 
-                district_code = (row.get("DistrictCode") or "").strip()
+                district_code = (row.get("DistrictCode") or "").strip().zfill(5)
                 school_code = (row.get("SchoolCode") or "").strip()
                 ncessch = lookup.get((district_code, school_code))
                 if ncessch is None:
@@ -260,7 +260,7 @@ def load_sqss(schools, lookup, logger):
             if org_level != "School" or group_type != "All Students" or grade_level != "All Grades":
                 continue
 
-            district_code = (row.get("DistrictCode") or "").strip()
+            district_code = (row.get("DistrictCode") or "").strip().zfill(5)
             school_code = (row.get("SchoolCode") or "").strip()
             ncessch = lookup.get((district_code, school_code))
             if ncessch is None:
