@@ -60,8 +60,11 @@ def load_ospi_discipline(logger):
             if org_level != "School" or student_group != "All Students" or grade_level != "All":
                 continue
 
-            # RULE: COMMA-IN-IDS BUG — strip commas from codes before joining
-            district_code = (row.get("DistrictCode") or "").strip().replace(",", "")
+            # RULE: COMMA-IN-IDS BUG — strip commas from codes before joining.
+            # RULE: LEADING-ZERO BUG — DistrictCode for counties 01-09 may be
+            # published 4-char without the leading zero; zfill(5) restores the
+            # schema convention. (See commit 97a342f for the same fix in 04.)
+            district_code = (row.get("DistrictCode") or "").strip().replace(",", "").zfill(5)
             school_code = (row.get("SchoolCode") or "").strip().replace(",", "")
 
             ncessch = lookup.get((district_code, school_code))
