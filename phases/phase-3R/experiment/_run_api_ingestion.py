@@ -172,7 +172,14 @@ grad_rows = soda_fetch_all(
 grad_by_key = defaultdict(dict)  # (district_code, school_code) -> {"4yr": rate, "5yr": rate}
 unjoined_rows = 0
 for row in grad_rows:
-    dc = (row.get("districtcode") or "").strip()
+    # RULE: LEADING-ZERO BUG — 76iv-8ed4 publishes districtcode as variable
+    # width (4 or 5 chars depending on whether the leading zero is stripped
+    # for districts in counties 01-09). Schema's metadata.ospi_district_code
+    # is uniformly 5-char zero-padded; zfill(5) restores the convention.
+    # Same pattern as commit 97a342f / a0de7ec in the production pipeline.
+    # Originally fixed at runtime via _patch_task1_zfill.py; this in-source
+    # fix prevents the bug from reappearing on any future re-ingest.
+    dc = (row.get("districtcode") or "").strip().zfill(5)
     sc = (row.get("schoolcode") or "").strip()
     cohort = (row.get("cohort") or "").strip()
     rate_str = row.get("graduationrate")
