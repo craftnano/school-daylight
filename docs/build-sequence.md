@@ -14,6 +14,10 @@ This is the step-by-step build plan. Each phase has: what we're building, who do
 2. **Claude Code (the agent):** Build the data dictionary, ETL pipeline, comparison engine, AI enrichment, narrative generation, frontend, and testing utility. Does the coding, the column mapping, the data cleaning, the computation.
 3. **The testing utility (the quality gate):** Runs after every phase. Catches wrong data, bad joins, fabricated claims, forbidden language. The thing that lets you trust agent output without reading every line of code.
 
+**Phase numbering note.** Phase 6 has been split into 6A (design), 6B (mockup), and 6C (build) following the precedent of Phase 3R (the R suffix marked a structural expansion of an original phase). Existing phase receipts, build log entries, and `phases/` directories referencing earlier phase numbers remain valid. Phases 7 (testing) and 8 (iterate and harden) keep their original numbers.
+
+**Two-stage launch.** The frontend launches in two stages. Phase 6C deploys a soft launch at beta.schooldaylight.com with no public promotion, used as the artifact for reviewer outreach and parent comprehension feedback. Public launch at schooldaylight.com follows methodology review. Public launch is a configuration flip, not a separate phase.
+
 ---
 
 ## Claude Code Session Rules
@@ -421,27 +425,49 @@ And returns: a structured briefing in the 12-section format defined in the found
 
 ---
 
-## Phase 6: Frontend — Streamlit Lookup
+## Phase 6A: Design
 
-**What:** A web application where a parent types a school name and receives the briefing.
+**What:** The frontend's design phase. Information architecture, content model, parent-facing language framework, visual identity direction, and a register of methodology-derived display decisions.
 
-**Technical decisions:**
+**Why split out:** After Phase 3R the project has 17 similarity variables, three subjects of academic flag, a cohort denominator rule that produces three classes of insufficient data, and a descriptive-only/excluded-school treatment with five reason codes. The original Phase 6 framing assumed the frontend was a mechanical wrap-up of narrative rendering; the methodology now requires design decisions that the original phase did not anticipate.
 
-*Search.* Parents will type "Fairhaven" not "Fairhaven Middle School, Bellingham, WA, NCES ID 530327003456." Need fuzzy text search. MongoDB Atlas Search provides this natively — full-text search with typo tolerance. Set up an Atlas Search index on school name, city, and district name. Claude Code can configure this.
+**Dependencies:** Phase 3R methodology brief complete. Reviewer feedback not required.
 
-*Display.* The briefing is already structured into 12 sections. Streamlit renders them as expandable sections (st.expander) with the headline summary always visible at the top. Progressive disclosure: parent sees the summary first, drills into what interests them.
+---
 
-*No authentication.* No login, no accounts, no tracking. Parent arrives, searches, reads, leaves. This is a design choice, not a limitation — it's a civic tool, not a SaaS product.
+## Phase 6B: Mockup
 
-*Mobile responsive.* Streamlit handles this reasonably well by default. Test on phone — most parents will access this on mobile.
+**What:** High-fidelity rendering of two reference school briefings end-to-end against Phase 6A. Mockup format is builder's choice (Figma, HTML/CSS, polished doc). Not committed code in the build platform.
 
-**Hosting:** Streamlit Community Cloud is free for public apps deployed from a GitHub repo. Claude Code can set up the repo structure. Domain pointing requires a custom domain on Streamlit's paid tier (~$0/month for Community, or deploy elsewhere for ~$5-20/month on Railway/Render).
+**Why a mockup phase:** Forces decisions the design phase can leave ambiguous. Surfaces what is broken, what reads as jargon, what is missing, before code commits to a structure that becomes expensive to change.
 
-**Open source:** The GitHub repo is public from day one. MIT license for code, CC BY 4.0 for documentation. The pipeline, cleaning rules, prompts, and test suite are all visible. This is a civic tool interpreting public data — the code that does the interpreting must be public too. This also means: no API keys committed to the repo (environment variables only), no hardcoded connection strings, no secrets in code.
+**Dependencies:** Phase 6A complete.
 
-**Output:** A live, publicly accessible web application where any parent can look up any Washington public school and receive a briefing.
+---
 
-**Gate:** Three people who aren't the builder can find their school and read the briefing without asking "what does this mean?" or "how do I...?"
+## Phase 6C: Build
+
+**What:** Streamlit implementation that turns the Phase 6B mockup into a working frontend across all 2,532 Washington schools, deployed to beta.schooldaylight.com as a soft launch.
+
+**Why deferred:** Cannot start until 6A and 6B are complete.
+
+**Implementation:**
+
+*Search.* Fuzzy text search on school name, city, and district. MongoDB Atlas Search index.
+
+*Display.* Briefing structure rendered per Phase 6A content model and Phase 6B mockup. Streamlit components chosen to match the mockup.
+
+*Soft-launch deployment.* Tool deployed to beta.schooldaylight.com. Hosting platform decided in implementation (Streamlit Community Cloud paid tier, Railway, Render, or Cloudflare-fronted alternative). The root domain schooldaylight.com is not configured to point at the tool during soft launch. Soft-launch deployment is not indexed by search engines (robots.txt, no canonical link tags pointing at the root domain) until public launch.
+
+*Public-launch transition.* Phase 6C produces a tool whose soft-to-public transition is a single configuration flip rather than a content rewrite or infrastructure migration. Active language version (soft-launch or public-launch) controlled by a configuration variable. Both versions built and in place.
+
+*Carried over from original Phase 6.* No authentication, mobile responsive, source-available repo from day one (PolyForm Noncommercial 1.0.0 for code; CC BY-NC 4.0 for documentation, methodology, and data interpretation). Commercial use requires permission. Updated from the original Phase 6, which used MIT plus CC BY 4.0.
+
+*Methodology disclosure page.* New work the original Phase 6 did not anticipate. Drawn from Phase 6A's parent-facing language framework. Soft-launch and public-launch versions both built; active version controlled by the same configuration variable.
+
+*License setup.* LICENSE at repo root containing the full PolyForm Noncommercial 1.0.0 license text from https://polyformproject.org/licenses/noncommercial/1.0.0/; LICENSE-DOCS at repo root containing the full CC BY-NC 4.0 license text from https://creativecommons.org/licenses/by-nc/4.0/legalcode.en; README section explaining the split licensing structure in human-readable terms with a commercial-licensing contact path; methodology disclosure page note on how the methodology is licensed (one sentence).
+
+**Dependencies:** Phase 6A complete, Phase 6B complete. Methodology reviewer feedback received and reconciled before public-launch flip, but not required for soft-launch deployment.
 
 ---
 
@@ -500,7 +526,9 @@ This is not a startup sprint. This is one person building between parenting, law
 | Phase 3: Comparison engine | ~30 min (review) | 1 Claude Code session | Phase 2 |
 | Phase 4: Haiku enrichment | ~1 hour (review) | 1-2 Claude Code sessions + batch run | Phase 2 |
 | Phase 5: Sonnet narratives | ~2-3 hours (prompt iteration + reading briefings) | 1-2 Claude Code sessions + batch run | Phases 3 + 4 |
-| Phase 6: Frontend | ~30 min (review) | 1 Claude Code session | Phase 5 |
+| Phase 6A: Frontend design | — | — | Phase 5, Phase 3R brief |
+| Phase 6B: Frontend mockup | — | — | Phase 6A |
+| Phase 6C: Frontend build + soft launch | — | — | Phase 6A, 6B |
 | Phase 7: Testing | Continuous from Phase 1 onward | Built into each phase | Each phase |
 
 **Total human time: roughly 8-12 hours** spread over 2-3 weeks. The bulk of that is Phase 5 — reading generated briefings and iterating on the Sonnet prompt until the tone and accuracy are right. That's editorial work, not technical work, and it's the part that matters most.

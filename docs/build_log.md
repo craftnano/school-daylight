@@ -490,3 +490,13 @@ Methodology re-run with the adjusted threshold passed. Eligible 2,051 (matches t
 **End-of-period state.** 9 commits pushed (`73dfa25` predates this window; `cbbb8f4`, `f133b5a`, `e2ded35`, `97a342f`, `a0de7ec`, `742f5d6`, `bdd2c63`, `0adda1b`, `3e068be`). `peer_match.*` populated for all 2,532 docs against the 2,051-school eligible set. Three pipeline scripts and one sandbox script have the zfill fix in source. Brief, matrix, reviewer questions, and foundation.md all reflect the post-zfill empirical numbers. Section 2 cohort differential diagnostic is the latest informational input to the threshold-value decision; threshold value not yet committed. Next: Section 2 threshold value choice and the academic flag computation.
 
 ---
+
+## 2026-05-10 — Phase 6 split into 6A (design), 6B (mockup), 6C (build) with soft-launch positioning
+
+Also updated license model: PolyForm Noncommercial 1.0.0 for code, CC BY-NC 4.0 for documentation and methodology, replacing the original MIT plus CC BY 4.0 framing. Project is now source-available rather than open source. Commercial use of code or methodology requires permission. License files and README updates handled in Phase 6C.
+
+Phase 6 split into 6A (design), 6B (mockup), 6C (build) following Phase 3R precedent. Phase 6A is builder-led design work that can start during the methodology review window. Phase 6B is mockup work with parent comprehension testing. Phase 6C is the original Phase 6 build, refactored against 6A and 6B outputs and deployed to beta.schooldaylight.com as a soft launch. Public launch at schooldaylight.com follows methodology review, implemented as a configuration flip. Methodology reviewer feedback timing: shipped to statistical reviewers 2026-05-09, response pending; soft launch can proceed without blocking.
+
+Note: foundation.md (lines 20, 99, 352) and harm_register.md (lines 108-109) retain "open source" framing pending a separate licensing-language consistency pass. The new license decision (PolyForm Noncommercial 1.0.0 + CC BY-NC 4.0, source-available rather than open source) resolves the harm_register.md open question; the resolution and the foundation.md mission-language updates will be handled in a follow-up advisor session.
+
+---
