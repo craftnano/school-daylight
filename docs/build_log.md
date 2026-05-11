@@ -500,3 +500,13 @@ Phase 6 split into 6A (design), 6B (mockup), 6C (build) following Phase 3R prece
 Note: foundation.md (lines 20, 99, 352) and harm_register.md (lines 108-109) retain "open source" framing pending a separate licensing-language consistency pass. The new license decision (PolyForm Noncommercial 1.0.0 + CC BY-NC 4.0, source-available rather than open source) resolves the harm_register.md open question; the resolution and the foundation.md mission-language updates will be handled in a follow-up advisor session.
 
 ---
+
+## 2026-05-11 — Phase 2R scoped after premise-rot catch in Phase 6A
+
+Phase 6A interface review surfaced 2023-24 as the data vintage in parent-facing copy, which prompted the builder to question why current data wasn't being used. Investigation revealed the project had been operating within a 2023-24 frame since Phase 2 (Feb 2026, correct at the time) without re-examining that frame through Phase 3R (April-May 2026), including at moments that should have triggered re-examination — notably the May 5 R10 salary vintage-alignment decision, which deliberately downgraded 2025-26 preliminary to 2023-24 without questioning whether 2023-24 was still the right baseline. The methodology brief shipped to PhD reviewers May 9 carried the aged frame as a current fact. Phase 6A's review caught it incidentally, not by design.
+
+Phase 2R scoped in advisor session: refresh the data layer to current vintages, add a vintage manifest as a permanent control, build mechanical tests for known data-shape gotchas (the leading-zero/zfill class of bug specifically). Migration-with-history-block and rebuild-from-scratch both scoped and rejected in favor of refresh with the targeted-re-ingest pattern established in the May 7 zfill remediation work. Outgoing CC handoff captured separately at `phases/phase-2R/handoff_from_previous_cc.md`.
+
+See `phases/phase-2R/plan.md` for the full plan, controls, and sequential steps.
+
+---

@@ -16,6 +16,8 @@ This is the step-by-step build plan. Each phase has: what we're building, who do
 
 **Phase numbering note.** Phase 6 has been split into 6A (design), 6B (mockup), and 6C (build) following the precedent of Phase 3R (the R suffix marked a structural expansion of an original phase). Existing phase receipts, build log entries, and `phases/` directories referencing earlier phase numbers remain valid. Phases 7 (testing) and 8 (iterate and harden) keep their original numbers.
 
+**Phase 2R note.** Phase 2 has been expanded with Phase 2R (data refresh) following the precedent of Phase 3R. Phase 2R refreshes the data layer from 2023-24 to 2024-25 vintages for OSPI sources, adds a permanent vintage manifest control, and converts known data-shape gotchas into mechanical tests. The phase was added in May 2026 after a case of premise rot was caught during Phase 6A interface review. See `phases/phase-2R/` for plan, controls, and diagnosis.
+
 **Two-stage launch.** The frontend launches in two stages. Phase 6C deploys a soft launch at beta.schooldaylight.com with no public promotion, used as the artifact for reviewer outreach and parent comprehension feedback. Public launch at schooldaylight.com follows methodology review. Public launch is a configuration flip, not a separate phase.
 
 ---

@@ -447,6 +447,18 @@ Even without public reviews, inviting allegations (bullying, discrimination, uns
 
 **Design response:** Already designed around this: no public visibility, corroboration threshold required, AI synthesizes patterns not quotes, no publish-immediately dopamine loop. But language matters. Terms like "flag," "warning," and "anomaly" imply wrongdoing. The briefing should use softer framing: "stands out," "differs from peers," "worth asking about." The police-accountability data model is instructive: NYC's civilian complaint review board data carefully separates "allegation," "finding," and "outcome" to avoid implying guilt. CRDC counts are reported data, not adjudicated findings.
 
+### 8. Premise Rot
+
+A frame that was correct when established can continue to be operated within after the conditions that made it correct have changed. In February 2026, the Phase 2 pipeline used 2023-24 OSPI data as the current vintage, which was correct at the time. Through Phase 3R (April-May 2026) the project continued operating within that frame even as 2024-25 became available and even at moments that should have triggered re-examination — the May 5 salary R10 decision, for example, deliberately vintage-aligned a 2025-26 preliminary file downward to 2023-24 without questioning whether 2023-24 itself was still the appropriate baseline. The methodology brief shipped to reviewers on May 9 asserted 2023-24 as the most current available cycle, by which point that claim had aged out of accuracy without anyone noticing.
+
+**Design response:** The vintage manifest (`docs/vintage_manifest.yaml`) is the permanent control: every external source has a documented current vintage, publication date, refresh cadence, and last-verified date, audited at every phase exit. The discipline isn't catching a single staleness; it's forcing the frame to be re-questioned routinely.
+
+### 9. LLM Confidence-as-Evidence
+
+Confident prose about a domain reads as evidence of careful reasoning. For human-authored writing, this heuristic is usually reliable. For AI-assisted writing, it is not — fluent generation can produce confident-sounding claims that the underlying reasoning does not support. The asymmetric risk is highest for factual claims about external state, which are both the easiest for an LLM to assert with unwarranted confidence and the easiest for a human to verify independently.
+
+**Design response:** The fact-check pass on external-facing documents (Control 3 in Phase 2R) is the named control: every claim about external state requires a source URL and a verified-on date, applied as discipline rather than vigilance.
+
 ---
 
 ## Potential Validators and Partners
