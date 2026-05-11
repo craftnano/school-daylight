@@ -510,3 +510,9 @@ Phase 2R scoped in advisor session: refresh the data layer to current vintages, 
 See `phases/phase-2R/plan.md` for the full plan, controls, and sequential steps.
 
 ---
+
+## 2026-05-11 — Phase planning standardized: plan file is the operational source of truth
+
+Going forward, each phase begins with `phases/phase-N/plan.md` drafted in advisor session before execution. The plan contains decisions, controls, sequential steps, and risks. CC, advisor, and builder all read and update the same plan. Replaces the prior pattern of per-session handoff files, which produced drift between parallel CC and advisor handoffs and bundled state-and-tasks awkwardly. Phase 2R is the first phase under this convention; see `phases/phase-2R/plan.md` as the template.
+
+---

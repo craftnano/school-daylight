@@ -157,3 +157,5 @@ For detailed architecture and methodology, see these docs (read them, don't embe
 - `docs/data_dictionary.yaml` — Every source column mapped to schema (created in Phase 1)
 - `docs/build_log.md` — Chronological record of every decision with reasoning
 - `docs/how_to_find_anything.md` — Builder's cheat sheet for navigating the repo with grep
+
+Each phase is planned in `phases/phase-N/plan.md` before execution; the plan is the operational source of truth that CC, advisor, and builder all read and update.
