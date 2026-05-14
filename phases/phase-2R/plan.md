@@ -1,296 +1,279 @@
-# Phase 2R: 2024-25 Data Refresh — Sequential Plan
+# Phase 2R: 2024-25 Data Refresh — Plan (v2)
 
 ## What this file is
 
-Plan for refreshing School Daylight from 2023-24 to 2024-25 OSPI vintage. Tracks the sequence, decisions, and controls. Receipts and execution details live in `phases/phase-2R/` alongside this plan.
+Plan for refreshing School Daylight's data layer to current vintages, aligning with OSPI's current proficiency framing, and consolidating the project's two-database structure into a single operating database. This is v2 of the Phase 2R plan, rewritten after a substantive advisor session on 2026-05-13 that materially clarified the scope.
 
-Phase 2R follows the precedent of Phase 3R: an "R" suffix marks a structural expansion of an original phase. Phase 2R expands Phase 2 (the data layer) with current vintages, a permanent vintage manifest, and mechanical tests for known data-shape gotchas.
+The v1 plan (now archived) was drafted on 2026-05-11 based on assumptions about the database structure, vintage policy, and academic_flag implementation status that the audit conducted on 2026-05-13 either contradicted or refined. Where v1 and v2 conflict, v2 supersedes.
 
-Naming and scope settled in advisor planning session on May 11, 2026. The plan integrates handoff knowledge from the outgoing CC session (separately saved as `handoff_from_previous_cc.md`).
+## Why v2
 
-## Durable-doc updates (do before opening CC session)
+The 2026-05-13 advisor session, supported by a comprehensive read-only audit by a fresh CC session, surfaced several findings that reshaped Phase 2R:
 
-These updates need to land in the project's durable documents before Phase 2R execution begins. The lesson lives in three places — build sequence (structural plan), foundation doc (known risks), build log (chronological record) — each doing a different job.
+- **Operational database is `schooldaylight_experiment`, not `schooldaylight`.** Phase 3R wrote its outputs to the experiment database as a defensive isolation pattern. That database has been the operating data layer ever since. The historical `schooldaylight` carries Phase 2's February 2026 baseline plus Phase 5 narratives, but none of the Phase 3R additions (peer_match, refreshed teacher experience, R10 salary, derived demographic rates, census_acs).
+- **The vintage staleness was a policy artifact, not just a data lag.** Phase 3R operated under an implicit "vintage alignment" policy that prioritized statistical-reviewer convention over user-currency needs. That policy was never explicitly endorsed; it accumulated through individually-defensible decisions (notably R10 on 2026-05-05). The corrected policy: use most recent published data per variable, with explicit status disclosure where preliminary.
+- **R10 (the 2026-05-05 salary vintage-alignment decision) is reversed under the new policy.** OSPI S-275 2024-25 final has been available since 2025-11-25 (verified by CC on 2026-05-13). Salary refreshes to 2024-25 final, not 2025-26 preliminary, and not 2023-24 final.
+- **OSPI publicly adopted L2-L4 ("foundational grade-level knowledge") framing on 2024-09-10**, following a Smarter Balanced vendor clarification. The project has been using L3+L4 ("consistent grade-level knowledge") for ~20 months, diverging from OSPI's public framing. Phase 2R adopts L2-L4 to align with the state's current public characterization.
+- **academic_flag is designed but NOT computed.** The Phase 3R Section 2 methodology specified the cohort-based flag, the cohort statistics were computed and written to MongoDB as `peer_match` blocks, but the flag computation itself was never written. No script computes academic_flag values; no documents carry the field. Phase 2R does not implement academic_flag — that work belongs to a successor phase.
 
-### build-sequence.md
+## Scope (Option 1, locked)
 
-Add the following note in the phase numbering section, following the existing Phase 6 split note (line 17):
+Phase 2R does these things, and only these things:
 
-> **Phase 2R note.** Phase 2 has been expanded with Phase 2R (data refresh) following the precedent of Phase 3R. Phase 2R refreshes the data layer from 2023-24 to 2024-25 vintages for OSPI sources, adds a permanent vintage manifest control, and converts known data-shape gotchas into mechanical tests. The phase was added in May 2026 after a case of premise rot was caught during Phase 6A interface review. See `phases/phase-2R/` for plan, controls, and diagnosis.
+1. **Refresh the data sources to current vintages.** Seven sources, each documented below.
+2. **Switch the assessment loader to L2-L4 (foundational grade-level knowledge) column.** One-line column change in the assessment loader.
+3. **Re-run the existing cohort statistics computation** against refreshed data and the L2-L4 definition. Uses `_run_methodology_computation_v2_consolidated.py` as it currently exists; no methodology changes.
+4. **Rename `schooldaylight_experiment` → `schooldaylight`.** Archive the old `schooldaylight` as a mongodump for forensic reference, then drop.
+5. **Generate `docs/vintage_manifest.yaml`** mechanically from the loaders during ingestion. Documents source URL, vintage label, fetch timestamp, dataset identifier, and filter parameters for every source.
 
-### foundation.md (known risks section)
-
-Add:
-
-> **Premise rot.** A frame that was correct when established can continue to be operated within after the conditions that made it correct have changed. In February 2026, the Phase 2 pipeline used 2023-24 OSPI data as the current vintage, which was correct at the time. Through Phase 3R (April-May 2026) the project continued operating within that frame even as 2024-25 became available and even at moments that should have triggered re-examination — the May 5 salary R10 decision, for example, deliberately vintage-aligned a 2025-26 preliminary file downward to 2023-24 without questioning whether 2023-24 itself was still the appropriate baseline. The methodology brief shipped to reviewers on May 9 asserted 2023-24 as the most current available cycle, by which point that claim had aged out of accuracy without anyone noticing. The vintage manifest (`docs/vintage_manifest.yaml`) is the permanent control: every external source has a documented current vintage, publication date, refresh cadence, and last-verified date, audited at every phase exit. The discipline isn't catching a single staleness; it's forcing the frame to be re-questioned routinely.
-
-> **LLM confidence-as-evidence.** Confident prose about a domain reads as evidence of careful reasoning. For human-authored writing, this heuristic is usually reliable. For AI-assisted writing, it is not — fluent generation can produce confident-sounding claims that the underlying reasoning does not support. The asymmetric risk is highest for factual claims about external state, which are both the easiest for an LLM to assert with unwarranted confidence and the easiest for a human to verify independently. The fact-check pass on external-facing documents (Control 3 in Phase 2R) is the named control: every claim about external state requires a source URL and a verified-on date, applied as discipline rather than vigilance.
-
-### build_log.md
-
-Add a dated entry for May 11, 2026 recording: a case of premise rot caught during Phase 6A interface review (the parent-facing copy was surfacing 2023-24 as the data vintage, prompting the builder to question why current data wasn't being used); investigation revealed the project had been operating within a 2023-24 frame since Phase 2 (Feb 2026, correct at the time) without re-examining that frame through Phase 3R (April-May 2026) even at moments that should have triggered it (notably the May 5 R10 salary vintage-alignment decision); the methodology brief shipped to PhD reviewers May 9 carried the aged frame as a current fact; the Phase 6A interface review caught it incidentally rather than by design. Scoping of Phase 2R as a data refresh (not migration, not rebuild) settled in advisor session May 11. Outgoing CC handoff captured. Link to `phases/phase-2R/plan.md`.
+Phase 2R does NOT:
+- Implement academic_flag computation. Deferred to successor phase.
+- Recalibrate `flag_thresholds.yaml` for the L2-L4 distribution. The existing regression-era thresholds will produce different `performance_flag` values under L2-L4; this is expected and acceptable since `performance_flag` is itself being replaced. Successor phase handles recalibration coordinated with academic_flag implementation.
+- Regenerate Phase 5 narratives. Narratives stay held until the methodology phase completes, since narratives should render against academic_flag, not performance_flag, and academic_flag isn't being implemented in Phase 2R.
+- Update render-side / parent-facing copy. Phase 6A work resumes after Phase 2R completes.
+- Resolve the K=20 cohort-size question or the ≥15 cohort-mean denominator rule. Both are open methodology questions for the successor phase.
 
 ## Decisions already made
 
-These were settled in the advisor session on May 11, 2026. Don't relitigate without reason.
+Settled in advisor sessions on 2026-05-11 and 2026-05-13. Don't relitigate without naming a specific concern.
 
-- **Approach: refresh, not migration or rebuild.** Drop-and-recreate the schools collection against current vintages, per the pipeline's existing idempotent design (CLAUDE.md: "Pipeline is idempotent. Drop and recreate collection on each full load. Safe to run twice"). Refresh is what the architecture was built for. Migration with a history block was scoped and rejected as engineering complexity in service of a feature (cross-vintage comparison in the live schema) that isn't a parent-facing requirement. Clean rebuild was scoped and rejected as introducing more risk than it removed and lacking the speed advantage that would justify the disruption.
-- **2023-24 retention: archived, not live.** Before refresh, archive the current database (mongodump + raw 2023-24 source files preserved). 2023-24 is queryable from the archive for research purposes (e.g., the cohort-stability launch analysis) but not present in the live schema.
-- **Proficiency definition:** Adopt OSPI's new Levels 2-4 definition. Match what the state publishes. The methodology is definition-agnostic — it operates on whatever proficiency rate OSPI publishes, not on a definition choice. Section 1.12 of the methodology brief is rewritten to acknowledge the definitional shift.
-- **Verification breadth:** Fairhaven plus 5-6 additional spot-check schools chosen for diversity (ceiling effects, suppression, multi-source interaction, builder-personal sanity check).
-- **Cohort-stability analysis:** Run as launch material, not as a Phase 2R verification step. Happens in a separate analytical environment against the 2023-24 archive and the live 2024-25 data, not as a feature in the production schema.
-- **May 15 soft launch:** Gone. Reset after Phase 2R lands and Phase 5 narrative regeneration completes.
-- **Reviewer brief update:** Path A. Vintage-corrected v1.1 to Kerry and Ashley by end of week. Methodology unchanged. Diagnostic numbers (bucket distributions, Fairhaven specifics, negative-mean magnitudes) noted as 2023-24 with refresh in progress. v1.2 with refreshed diagnostics follows when Phase 2R completes. Kerry and Ashley were informally notified May 11.
-- **Ingestion method:** API preferred for all sources. CC attempts API first. If a source has no API or the API doesn't expose what's needed, CC reports what's needed (URL, filename, expected structure) and stops; builder downloads to a specified directory and CC resumes.
+- **Database consolidation: Option A.** Rename `schooldaylight_experiment` to `schooldaylight`; archive and drop the old `schooldaylight`. Single operating database going forward.
+- **Vintage policy: use most recent published data per variable, with explicit status disclosure where preliminary.** Replaces the implicit vintage-alignment policy that emerged during Phase 3R. Vintage alignment is preserved within the similarity vector at the time of cohort computation (a methodological requirement) but does not propagate to per-variable ingestion choices.
+- **R10 reversal.** Teacher salary refreshes to OSPI S-275 2024-25 final (available since 2025-11-25). The May 5 vintage-alignment-downgrade to 2023-24 is undone.
+- **Proficiency definition: L2-L4 ("foundational grade-level knowledge").** Aligns with OSPI's public framing as of 2024-09-10 and with Smarter Balanced's vendor clarification.
+- **CCD enrollment: use the 2024-25 preliminary file already on disk.** NCES `ccd_sch_052_2425_l_1a_073025.csv`. Preliminary status disclosed in provenance metadata per the vintage policy.
+- **Ingestion method: API preferred where available.** For sources where SODA endpoints are available (OSPI Enrollment, OSPI Assessment, graduation rate, teacher experience), use the API. For sources without API (CCD preliminary, TIGER Gazetteer), use the file with full provenance stamping.
+- **Verification breadth.** Fairhaven Middle School plus 4 spot-check schools used in the audit: Juanita HS (530423000670), Lewis and Clark HS (530927001579), Washington Elementary (530393000610), Thunder Mountain Middle (530000102795). Plus 1-2 additional schools chosen by builder if needed for specific diagnostic coverage.
+- **Narratives held.** No regeneration in Phase 2R. The methodology phase will handle narrative regeneration after academic_flag implementation lands.
+
+## Refresh targets and provenance
+
+Seven sources. Each entry includes the current state, the refresh target, the ingestion mechanism, and any open verification items.
+
+### Source 1: NCES Common Core of Data (CCD)
+
+- **Variables fed:** Enrollment (`enrollment.total`), Minority rate (`derived.race_pct_non_white`, derived from CCD white count and total)
+- **Current state in production:** 2023-24, pre-aggregated CSV at `data/ccd_wa_membership.csv`
+- **Refresh target:** 2024-25 preliminary, from on-disk file `WA-raw/federal/ccd_sch_052_2425_l_1a_073025.csv` (2.3 GB, December 2025 release)
+- **Ingestion:** File-based. Substantial loader rewrite required (CC's earlier scope: three calls plus pivot-aggregate). The pre-aggregation logic currently in Phase 1 needs to be rewritten or replaced to produce the equivalent extract from the new file.
+- **Provenance status:** Preliminary. Vintage stamp explicitly records preliminary status.
+- **Open items:** None. Loader work is in scope; CC drafts the rewrite as part of Phase 2R execution.
+
+### Source 2: OSPI Report Card — Enrollment
+
+- **Variables fed:** FRL rate (`demographics.frl_pct`), Homeless rate (`derived.homelessness_pct`), ELL/LEP rate (`derived.ell_pct`), Migrant rate (`derived.migrant_pct`), SPED rate (`derived.sped_pct`)
+- **Current state in production:** 2023-24, CSV file at `WA-raw/ospi/Report_Card_Enrollment_2023-24_School_Year.csv`
+- **Refresh target:** 2024-25 final, SODA endpoint `data.wa.gov/resource/2rwv-gs2e.json`. Last refreshed 2025-06-18.
+- **Ingestion:** SODA API. Lightweight loader update (~30 lines per CC: CSV-reader → SODA pager plus 10 column-name string changes).
+- **Provenance status:** Final.
+- **Open items:** None.
+
+### Source 3: OSPI Report Card — Assessment Data
+
+- **Variables fed:** Proficiency (`academics.assessment.ela_proficiency_pct`, `math_proficiency_pct`, `science_proficiency_pct`), feeds the existing `derived.performance_flag` computation
+- **Current state in production:** 2023-24, CSV file. Reads "Percent Consistent Grade Level Knowledge And Above" (L3+L4) column.
+- **Refresh target:** 2024-25 via SODA endpoint `data.wa.gov/resource/h5d9-vgwi.json`. Published 2025-09-10.
+- **Ingestion:** SODA API. Column read changes from "Percent Consistent Grade Level Knowledge And Above" (L3+L4) to "Percent Foundational Grade-Level Knowledge And Above" (L2-L4).
+- **Provenance status:** Final.
+- **Open items:** None. The fieldName mismatches CC documented (truncations in newer datasets) are handled by reading by display name where possible.
+
+### Source 4: OSPI Report Card — SQSS (chronic absenteeism / attendance)
+
+- **Variables fed:** Chronic absenteeism rate (`derived.chronic_absenteeism_pct`, derived from `academics.attendance.regular_attendance_pct`)
+- **Current state in production:** 2024-25 in experiment, already current per the audit. Historical `schooldaylight` has bug residue (40% of audit sample had null values from un-remediated zfill).
+- **Refresh target:** No vintage change needed; data is already current. The database consolidation (Step 4) drops the historical bug residue automatically.
+- **Ingestion:** No change.
+- **Provenance status:** Final.
+- **Open items:** None. Confirm during Phase 2R execution that the rename preserves the current 2024-25 values without regression.
+
+### Source 5: data.wa.gov — Graduation Rate
+
+- **Variables fed:** 4-year graduation rate, HS-only (`graduation_rate.cohort_4yr`)
+- **Current state in production:** 2023-24 from SODA endpoint `data.wa.gov/resource/76iv-8ed4.json`
+- **Refresh target:** 2024-25 final, SODA endpoint `data.wa.gov/resource/isxb-523t.json`. Published 2026-01-08, 99,634 rows. Per OSPI convention, new vintages get new dataset IDs; `76iv-8ed4` stays at 2023-24 in place.
+- **Ingestion:** SODA API. Two string substitutions in `_run_api_ingestion.py`: endpoint URL (`76iv-8ed4` → `isxb-523t`) and filter (`schoolyear=2023-24` → `schoolyear=2024-25`). Column structure identical to 2023-24 dataset; no schema or logic change required.
+- **Provenance status:** Final.
+- **Open items:** None.
+
+### Source 6: OSPI S-275 Personnel Summary
+
+- **Variables fed:** Average teacher salary, district base per FTE (`teacher_salary.average_base_per_fte`)
+- **Current state in production:** 2023-24 final, XLSX file at `phases/phase-3R/ingestion_data/table_15-40_school_district_personnel_summary_profiles_2023-24.xlsx`. Set on 2026-05-05 by R10 (now reversed).
+- **Refresh target:** 2024-25 final, XLSX file at `https://ospi.k12.wa.us/sites/default/files/2025-02/table_15-40_school_district_personnel_summary_profiles_2024-25.xlsx`. Published 2025-11-25. Sheet count (39) and column structure match the 2023-24 file at the load-bearing read positions (district code at row[0], base salary at row[5]).
+- **Ingestion:** File-based. Lightweight filename and year-stamp update. The minor sheet-name variation between vintages ("Table 19" with space in 2024-25 vs "Table19" without space in 2023-24) is already handled by the existing loader's sheet-name fallback list (`_run_salary_reingestion_2023-24.py` lines 105-107); no code change required for that variation.
+- **Provenance status:** Final.
+- **Open items:** None.
+
+### Source 7: U.S. Census Bureau
+
+Two sub-sources, both Census-published, both API-sourced.
+
+#### 7a: Census ACS 5-year API
+
+- **Variables fed:** Median household income (`census_acs.median_household_income.value`), Gini index (`census_acs.gini_index.value`), Labor force participation 16+ (`census_acs.labor_force_participation_rate_16plus.value`), Unemployment 16+ (`census_acs.unemployment_rate_16plus.value`), B01003 total population (numerator of population density `census_acs.population_density_per_sq_mile.value`)
+- **Current state in production:** ACS 5-year 2019-2023, endpoint `api.census.gov/data/2023/acs/acs5`
+- **Refresh target:** ACS 5-year 2020-2024, endpoint `api.census.gov/data/2024/acs/acs5`. Published December 2025.
+- **Ingestion:** API. Three string changes in `_run_acs_ingestion.py` (URL, vintage constant, vintage stamp).
+- **Provenance status:** Final.
+- **Open items:** None. CC confirmed 2020-2024 endpoint live and serving on 2026-05-13.
+
+#### 7b: TIGER Gazetteer
+
+- **Variables fed:** Land area (`census_acs.land_area_sq_miles.value`), ALAND denominator of population density
+- **Current state in production:** TIGER 2023 Gazetteer
+- **Refresh target:** TIGER 2024 Gazetteer at `www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_unsd_national.zip`. Published 2024-08-30.
+- **Ingestion:** File from URL (static zip, no API). One string change in the loader.
+- **Provenance status:** Final.
+- **Open items:** None.
 
 ## Controls
 
-The refresh path doesn't require migration-specific controls (parallel-collection protocol, side-by-side diff receipts, definition-comparability receipts). What survives are the controls that close failure modes the existing toolkit leaves open regardless of path. Five controls, plus three updates to existing controls.
-
-Most are permanent infrastructure. The vintage manifest stays forever; the tests stay forever; the brief fact-check pass becomes phase-exit hygiene for any phase that produces external-facing documentation.
+Five controls. The original v1 plan had several controls oriented around migration risk (parallel-collection protocol, side-by-side diff receipts) that are not relevant under Option 1's database rename approach. The surviving controls close failure modes the refresh path itself surfaces.
 
 ### Control 1: Vintage manifest
 
-**What:** `docs/vintage_manifest.yaml` listing every external source. For each entry: name, current vintage in use, publication date of that vintage, source URL, expected refresh cadence, "last verified current" date, who verified.
+**What:** `docs/vintage_manifest.yaml` generated mechanically by the loaders at each ingestion. One entry per source-dataset combination (probably 7-8 entries given Source 7's two sub-sources and any other splits). Each entry: source name, current vintage in use, publication date, source URL or endpoint, fetch timestamp, expected refresh cadence, last verified current date.
 
-**When checked:** At every phase exit. If anything is older than its refresh cadence, that's a stop.
+**When checked:** At every phase exit going forward, not just Phase 2R. If anything is older than its refresh cadence, that's a stop.
 
-**Closes:** Premise rot. The staleness lesson that triggered this phase becomes routine check rather than accidental discovery.
+**Closes:** Premise rot. The staleness lesson that triggered Phase 2R becomes a routine mechanical check rather than accidental discovery.
 
-**Priority:** Highest-leverage control on the list. Cheapest to build, prevents the exact failure mode that caused this crisis. Build first.
+**Priority:** Highest-leverage control. Build during Phase 2R execution as part of loader work; do not defer.
 
 ### Control 2: Backup-restorability check
 
-**What:** Before destructive operations, dump the database. Restore the dump into a sandbox collection. Confirm document count matches. Spot-read Fairhaven. Three-line receipt: dump path plus SHA256, restore document count, golden-school field check.
+**What:** Before destructive operations (the rename and drop of historical `schooldaylight`), dump the database. Restore the dump into a sandbox collection. Confirm document count matches. Spot-read Fairhaven. Three-line receipt: dump path plus SHA256, restore document count, golden-school field check.
 
-**Closes:** Silent mongodump failure. Completes-but-not-restorable is a known Atlas SRV failure mode. Also serves as the archive step for 2023-24: the verified dump becomes the durable record of the pre-refresh state.
+**Closes:** Silent mongodump failure. Also serves as the archive step for the historical `schooldaylight`: the verified dump becomes the durable forensic record of the pre-Phase-2R state.
 
-### Control 3: Fact-check pass on brief claims
+### Control 3: Pre-execution review for destructive operations
 
-**What:** Every claim in the methodology brief about external state (vintages, definitions, sources, refresh cadences, regulatory references) requires a citation: source URL plus last-verified date. Output is a receipt: claim list, citation status (cited / inferred / missing), action taken.
+**What:** The rename and drop are destructive operations. Per CLAUDE.md, they require plain-English proposal and plain-English approval before commands are written. CC drafts a step-by-step proposal covering the dump, the verification, the rename, the drop. Builder reviews and approves before any of it executes.
 
-**Closes:** AI-confident-prose halo. Section 1.12's vintage claim was wrong because it was generated as confident prose without verification. Other claims in the May 9 brief currently in reviewers' hands may have the same problem.
+**Closes:** The wrong database getting modified or dropped. Especially important given the experiment-vs-historical confusion this conversation surfaced — the rename procedure must be unambiguous about which database is being archived versus which is being renamed.
 
-**Priority:** Time-sensitive. The May 9 brief is in reviewers' hands now. Fact-check pass on the existing brief should happen before the rewrite — it surfaces whether the rewrite is one-section (just vintage) or larger.
+### Control 4: API ingestion provenance convention
 
-### Control 4: Pipeline target-collection guard
+**What:** Every API-sourced variable must persist, at ingestion time, in an adjacent `_meta` block: (1) the full API endpoint URL with vintage in the path; (2) the canonical vintage label as a string; (3) the fetch timestamp (ISO 8601 UTC); (4) the source dataset identifier; (5) the filter parameters used in the fetch. The build log entry for any API ingestion records the vintage explicitly.
 
-**What:** Pre-flight check before any pipeline script that does `collection.drop()`, `drop_collection()`, or `deleteMany`. Read intended target collection name, refuse to proceed if it matches the live collection without an explicit runtime flag.
+**Closes:** API-no-cache provenance weakness. With API responses not persisted to disk, in-document provenance is the only verifiable record of what was fetched.
 
-**Closes:** Pipeline drop-and-replace risk on the wrong target. The pipeline is designed for drop-and-recreate semantics, but the guard exists for the case where a script is run against the wrong database or with the wrong env vars loaded.
+**Status:** Already followed implicitly by Phase 3R's API loaders (teacher experience, Census ACS). Phase 2R formalizes as a convention and applies it consistently to the new loaders.
 
-### Control 5: Testing-layer audit and gotcha-to-test conversion
+### Control 5: File ingestion year-from-column assertion
 
-**What:** Convert the outgoing CC's gotcha list into mechanical tests. Each gotcha currently caught by vigilance becomes a deterministic check that fails the ingest. The "Tests to build" section below specifies them. Also resolves CLAUDE.md drift: `tests/run_tests.py` is referenced in CLAUDE.md but doesn't exist — either build it or update CLAUDE.md to match the actual test layout.
+**What:** Where a file-sourced loader expects a specific year, the loader reads the year from the file's own SchoolYear column (or equivalent) when available, and asserts the column value matches the expected year before proceeding. Fall back to filename or in-loader stamp only when the file lacks an internal year column.
 
-**Closes:** Vigilance-doesn't-scale. Every "X bit us in pipelines 04, 05, 09, and a sandbox" pattern in the handoff is evidence that human-level vigilance was the existing control and it failed multiple times across multiple scripts.
+**Closes:** Loaders silently stamping the wrong year when a source file changes without a filename change. Surfaces vintage mismatches at ingestion time rather than downstream.
 
-**Priority:** High. Tests must be in place before refresh ingest of 2024-25 data, otherwise the same bugs may recur on the new vintage.
-
-## Existing controls to update
-
-- **CLAUDE.md.** Add a "Refresh Safety" section: pipeline target-collection guard (Control 4), backup-restorability requirement before any refresh, vintage manifest as a phase-exit requirement. Resolve the `tests/run_tests.py` reference drift.
-
-- **Receipt template.** Add a top-line vintage manifest cross-reference: "Sources used in this phase, with vintage and publication date." If the vintage manifest hasn't been audited within N days of the phase, that's a stop.
-
-- **Phase exit template.** Add two required sections: (a) fact-check status — claims in any new documentation verified against citation discipline; (b) external-perspective audit — one artifact reviewed through an external reader's lens (parent for interface artifacts, methodology reviewer for brief artifacts). Phase 6A's interface review caught the staleness; this promotes that pattern from accident to requirement.
-
-## Tests to build
-
-The outgoing CC's gotcha list is, in another light, a list of bugs that should have been mechanical tests but weren't. Every "watch for X" is a place where the existing testing layer didn't catch X and a human had to. Each test below pairs with one or more gotchas and converts vigilance into a deterministic check.
-
-The tests go in the existing `tests/` directory. Control 7 (testing-layer audit) resolves whether they wire to a `run_tests.py` entry point or to whatever actually exists.
-
-Tests must be in place before 2024-25 ingest. Otherwise the same bugs recur on the new vintage.
-
-### Test 1: ID dtype check
-
-At every `read_csv` / `read_excel`, assert ID columns are string-typed and length-correct. Cover: `NCESSCH` (12 chars), `ST_SCHID`, `DistrictCode`, `SchoolCode`, `COMBOKEY`, county codes, `LEAID`. Fail on any value that's not a string or that's shorter than expected.
-
-Catches: leading-zero strip. Outgoing CC: bit pipelines 04, 05, 09, and one sandbox script in Phase 3R; 390 schools across 9 counties affected.
-
-### Test 2: Comma-in-IDs check
-
-At Discipline file ingest specifically, assert no ID values contain commas after strip. Fail on any.
-
-Catches: Discipline-only quirk where `SchoolCode` renders as "2,066" rather than 2066. Fairhaven (37501 / 2066) is the test exemplar.
-
-### Test 3: Grade label vocabulary check
-
-Maintain `tests/expected_grade_labels.yaml` per source file. Compare ingested labels against expected. Fail on unrecognized values.
-
-Catches: "All" (Discipline) vs "All Grades" (other OSPI files) silent drift. Also surfaces any new label OSPI introduces without ad-hoc normalization.
-
-### Test 4: Suppression marker vocabulary check
-
-Maintain `tests/expected_suppression_markers.yaml` per source file (`N<10`, `*`, `No Students`, `Top/Bottom Range` for OSPI). At ingest, assert every value that looks like potential suppression matches an expected marker. Fail on unknown.
-
-Catches: new suppression markers OSPI may introduce; also prevents the Growth file's `DATReason="NULL"` (which means "no special reason," not suppression) from being misclassified.
-
-### Test 5: Pipeline target-collection guard
-
-Pre-flight check before any pipeline script that does `collection.drop()`, `drop_collection()`, or `deleteMany`. Read intended target collection name, refuse to proceed if it matches live `schools` unless an explicit `--allow-live` runtime flag is passed.
-
-Catches: pipeline/09 and pipeline/16 silently wiping enriched fields. Outgoing CC: single highest-risk landmine for migration. This test is the mechanical version of Control 3's parallel-collection protocol.
-
-### Test 6: Atlas storage threshold check
-
-After every load, query collection stats, compute percentage of M0 ceiling (512MB) used. Warn at 80%, stop at 95%.
-
-Catches: silent approach to ceiling. The schema change in this phase potentially doubles per-doc weight on the academic block.
-
-### Test 7: Schema invariant tests
-
-Run after every ingest:
-
-- Every document has `_id` as 12-char string; no separate `nces_id` field exists
-- Every percentage field is decimal 0.0–1.0 (never raw 0–100)
-- Every document has `metadata.dataset_version` and `metadata.load_timestamp` at root
-- Suppressed values stored as `null` with `"suppressed": true`, never as zero or empty string
-
-Catches: schema drift on CLAUDE.md-mandated invariants that currently rely on convention rather than enforcement.
-
-### Test 8: FRL source check
-
-Assert FRL ("Low Income") values originate from OSPI source, not CCD. Codified as a source-tag check on the field.
-
-Catches: silent use of unreliable CCD FRL data for WA.
-
-### Test 9: Drift monitor (periodic, not ingest-time)
-
-Different from the rest. Runs on a schedule, not at ingest. Sample a small set of schools and fields. Fetch fresh values from OSPI's published API or files. Compare against MongoDB values. Alert on divergence.
-
-Catches: post-load silent drift (the chronic absenteeism precedent). Operates between releases, not only at release time. Worth scoping carefully — this is the only test that requires standing infrastructure, not just a check at load time. Probably out of scope for this phase's initial test build, but worth specifying now so the design isn't lost.
+**Status:** New convention introduced by Phase 2R. Applied to all file-sourced loaders updated during this phase.
 
 ## Sequential plan
 
-The plan splits into two parts: pre-CC work (advisor and builder, this week) and CC work (new session, after pre-CC work resolves and the vintage manifest is seeded).
+The plan splits into pre-execution verification (completed 2026-05-13), execution (loader updates and runs), and verification (post-execution receipts).
 
-### Pre-CC work (advisor and builder)
+### Pre-execution verification (completed 2026-05-13)
 
-These run roughly in parallel. Together they produce the artifacts the new CC session needs as input.
+#### Step P1 — Confirm graduation rate 2024-25 availability ✓
 
-#### Step A — Fact-check pass on May 9 brief
+CC verified on 2026-05-13. 2024-25 graduation data lives in a new SODA dataset `isxb-523t` (published 2026-01-08, 99,634 rows), not in `76iv-8ed4`. Per OSPI convention, new vintages get new dataset IDs. Column structure identical to 2023-24 dataset. Refresh is two string substitutions in the existing loader. See Source 5 above for refresh target details.
 
-Per Control 3. Audit existing claims in the May 9 methodology brief, not just Section 1.12's vintage error. Identify any other external-state claims (S-275 publishing schedule, CRDC status, statutory references, citations) that need correction or qualification. Output is a structured receipt: claim list, citation status (cited / inferred / missing), action taken. Surfaces whether the brief update is one-section (Section 1.12 plus Appendix A citations) or larger.
+#### Step P2 — Confirm S-275 parallel XLSX URL ✓
 
-Done by advisor and builder together. Time-sensitive — gates the brief update.
+CC verified on 2026-05-13. The 2024-25 machine-readable XLSX is published at `https://ospi.k12.wa.us/sites/default/files/2025-02/table_15-40_school_district_personnel_summary_profiles_2024-25.xlsx` (HEAD probe 200, 699,479 bytes, published 2025-11-25). Sheet count (39) and column structure match the 2023-24 file at all load-bearing read positions. Minor sheet-name variation handled by existing loader's fallback list. See Source 6 above for refresh target details.
 
-#### Step B — Methodology brief v1.1 update
+### Execution
 
-Vintage-corrected brief shipped to Kerry and Ashley by end of week (Friday May 15). Section 1.12 rewritten to acknowledge the 2024-25 publication and the L2-4 definitional shift. Section 2.8 vintage line updated. Appendix A vintage citations updated. Diagnostic sections (2.3 bucket distribution, 2.4 negative-mean magnitudes, 2.5 Fairhaven specifics) noted as 2023-24 with refresh in progress; v1.2 with refreshed diagnostics follows when Phase 2R completes.
+Pre-execution review per Control 3 required before Step E1. CC drafts plan, builder approves.
 
-Drafted by advisor and builder. Fact-check pass from Step A informs scope.
+#### Step E1 — Baseline mongodump
 
-#### Step C — Updates to durable docs
+Dump both `schooldaylight` and `schooldaylight_experiment`. Two separate dump files, each with SHA256, document count, connection metadata. Stored outside project directory plus cloud copy.
 
-Per the "Durable-doc updates" section at the top of this plan. Build sequence note, foundation doc known-risks entry, build log entry. Done by builder.
+Filenames: `schooldaylight_2026-05-XX_pre_phase_2R.archive` and `schooldaylight_experiment_2026-05-XX_pre_phase_2R.archive`.
 
-### CC work (new session)
+Raw source files for all in-scope vintages preserved in `data/archive/2024-25/` with SHA256.
 
-Opens after Step A completes and the new CC session is set up with appropriate context (CLAUDE.md, foundation.md, build-sequence.md, this plan, and the outgoing CC handoff).
+#### Step E2 — Backup-restorability check
 
-#### Step 1 — Vintage manifest seed
+Per Control 2. Restore both dumps into sandbox collections. Confirm document counts. Spot-read Fairhaven in each. Receipt: per-database dump path + SHA256, restore document count, golden-school field check.
 
-Per Control 1. New CC's first deliverable. Inventory every external source the project uses: current vintage in production, publication date, source URL, refresh cadence, last verified current, who verified. The outgoing CC's handoff plus the data dictionary supply most of the source list.
+#### Step E3 — Update loaders
 
-The manifest also answers the scope question: which sources are in refresh-scope depends on which show as stale. OSPI assessment, growth, ELL, enrollment, demographics, attendance (within SQSS), discipline — confirmed stale. S-275 personnel, ACS 5-year, teacher experience distribution — status TBD.
+Per the per-source specifications in the Refresh Targets section above. Loader work in dependency order:
 
-#### Step 2 — Baseline mongodump and archive
+- Census ACS URL update (Source 7a) — three string changes
+- TIGER URL update (Source 7b) — one string change
+- OSPI Enrollment SODA migration (Source 2) — ~30 lines
+- OSPI Assessment SODA migration + L2-L4 column switch (Source 3) — ~30 lines + 1 line
+- Graduation rate refresh (Source 5) — two string substitutions
+- S-275 refresh (Source 6) — filename and year-stamp update
+- CCD preliminary file ingestion (Source 1) — substantial loader rewrite
 
-Dump the current state of the database. This serves two purposes: the standard pre-destructive-operation backup, and the durable archive of 2023-24 for future research use (cohort-stability launch analysis runs against this dump).
+All loaders write provenance metadata per Control 4 (API-sourced) or Control 5 (file-sourced). All loaders update the vintage manifest entry per Control 1.
 
-Receipt includes: dump file path, file size, SHA256 hash, document count by collection, connection URI structure (without secrets), auth method, Mongo version. Stored outside the project directory plus a copy to cloud storage. Date-stamped filename: `schools_dump_2026-05-XX_pre_phase_2R.archive`.
+#### Step E4 — Run refreshed pipeline
 
-Raw 2023-24 source files also preserved in `data/archive/2023-24/` with SHA256 hashes if not already so.
-
-#### Step 3 — Backup-restorability check
-
-Per Control 2. Restore the dump into a sandbox collection. Confirm document count matches. Spot-read Fairhaven. Three-line receipt: dump path plus SHA256, restore document count, golden-school field check. Only then proceed.
-
-This is the durable confirmation that the 2023-24 archive is recoverable, not just present on disk.
-
-#### Step 4 — Pre-execution review
-
-CC inspects and reports on the following before touching any pipeline code:
-
-- 2024-25 OSPI Report Card Assessment Data: structure, per-level counts present or absent, column-name changes against existing 2023-24 ingest, suppression marker conventions, school count. Confirms or refutes the outgoing CC's predicted gotchas (leading-zero bug, comma-in-IDs in Discipline, "All" vs "All Grades" label drift, suppression markers, FRL source). Each gotcha gets a binary outcome: confirmed, refuted, or no longer applies.
-- Other 2024-25 OSPI files: Growth, English Learner Assessment, Enrollment, Demographics, Attendance (within SQSS), Discipline — confirm publication and structure.
-- S-275 Personnel Summary Reports 2024-25: confirm whether published. If yes, refresh-scope. If no, the v1 finance variable continues with 2023-24 data and the vintage manifest documents the lag.
-- ACS 5-year estimates: check whether 2020-2024 vintage available. If yes, refresh-scope (every cohort assignment shifts). If no, continue with 2019-2023.
-- Teacher Experience Distribution: check whether 2025-26 vintage available.
-- Drift check: compare live 2023-24 values in MongoDB to OSPI's published 2023-24 numbers for a sample of fields and schools. Surface any silent drift (chronic absenteeism had a known instance) so it's distinguished from refresh changes downstream.
-
-Output: structured pre-execution review document. Builder reads. Nothing else happens until builder responds.
-
-#### Step 5 — Builder reviews findings
-
-Approve refresh scope (which sources are in, which stay), confirm any code changes needed to handle 2024-25 column shape differences, approve the test list from the "Tests to build" section.
-
-#### Step 6 — Build tests per "Tests to build" section
-
-Per Control 5. Tests 1 through 8 built in `tests/` before refresh ingest begins. Tests run green against the existing 2023-24 data first — if they don't, that surfaces pre-existing bugs separate from the refresh, and those get resolved or documented before the refresh proceeds. Test 9 (drift monitor) deferred to post-launch.
-
-This step also resolves the `tests/run_tests.py` documentation drift.
-
-Output: test inventory document showing each test, what it covers, where it lives, how it runs. Receipt confirms tests run green against existing 2023-24.
-
-#### Step 7 — Pipeline target-collection guard
-
-Per Control 4. Add the pre-flight guard to pipeline scripts that do `collection.drop()`, `drop_collection()`, or `deleteMany`. The guard checks the target collection name against an allowed list and refuses to proceed without an explicit runtime flag for live collections.
-
-This is the mechanical version of "don't drop the wrong collection" — separate from the discipline of not running scripts against production accidentally.
-
-#### Step 8 — Refresh ingest
-
-CC runs the pipeline end-to-end against current vintages. Drop and recreate the schools collection. The pipeline was designed for this; the tests built in Step 6 catch the predicted gotchas at ingest if they recur.
+CC runs the pipeline end-to-end against `schooldaylight_experiment` (which is currently the operating database; the rename happens in Step E6). Drop-and-recreate semantics per existing pipeline design.
 
 Receipts: SHA256 hashes for all source input files, dataset_version stamp on every document, per-script load summary (rows in, documents written, suppression counts, error counts).
 
-#### Step 9 — Recompute cohorts and academic flags
+#### Step E5 — Re-run cohort statistics computation
 
-CC re-runs cohort matching and academic flag computation against refreshed variables. Cohorts may shift; flags may shift; the z-score distribution may shift under the new proficiency definition. This is expected. The receipt makes distribution shifts visible at the cohort level.
+CC re-runs `_run_methodology_computation_v2_consolidated.py` (or its production-pipeline equivalent if promoted during Phase 2R) against the refreshed data. Outputs new `peer_match` blocks for all eligible schools.
 
-#### Step 10 — Verification
+Cohorts may shift because the underlying similarity variables refreshed. This is expected. Receipt shows distribution shifts at the cohort level (how many schools changed cohort, distribution of cohort-mean changes, any schools that newly became eligible or descriptive_only).
 
-Multiple receipts. Each stops and waits for builder review.
+#### Step E6 — Database rename
 
-- Fairhaven Middle School field-by-field check against expected values (updated for 2024-25 under L2-4).
-- 5-6 spot-check schools, named in the CC kickoff prompt. Diverse selection: high-performing suburban (ceiling effects), small rural (suppression), large urban high-ELL (multi-source interaction), one builder-personal sanity check, one or two more.
-- Field-level summary of what changed between 2023-24 and 2024-25 for these schools.
-- Tests 1 through 8 run green against the refreshed data.
+After verification (Step V1) confirms the refreshed `schooldaylight_experiment` is in a good state, execute the rename:
 
-#### Step 11 — Phase 5 narrative regeneration
+1. Dump the current `schooldaylight` (already done in E1 — this is the verification that the archive is still good)
+2. Drop `schooldaylight`
+3. Rename `schooldaylight_experiment` → `schooldaylight`
+4. Verify the renamed database is accessible under the new name with all expected fields
 
-Batch regenerate the 1,885 existing narratives against refreshed data. Sonnet batch run.
+The rename happens after verification, not before, so the audit and verification work happens against the database under its current name and any issues surface before the rename.
 
-#### Step 12 — Methodology brief v1.2
+#### Step E7 — Generate vintage manifest
 
-Builder rewrites diagnostic-bearing sections (2.3, 2.4, 2.5) against refreshed data. Methodology unchanged. Ships to Kerry and Ashley as the promised v1.2 follow-up. Advisor helps with prose.
+`docs/vintage_manifest.yaml` generated from loader outputs. Committed to repo. Build log entry referencing it.
 
-#### Step 13 — Launch analysis
+### Verification
 
-Cohort-stability findings written up as launch material. Runs in a separate analytical environment against the 2023-24 archive (the verified mongodump) and the live 2024-25 data. Format and venue (LinkedIn essay, Sovereign Ground post, methodology appendix) decided separately.
+#### Step V1 — Field-level verification
 
-#### Step 14 — Soft launch
+Run before E6 (rename). Multiple receipts:
 
-After Phase 5 regeneration completes and launch piece is drafted. New target date set during Phase 2R execution, not now.
+- Fairhaven Middle School field-by-field check against expected values (updated for 2024-25 under L2-L4). Note: golden school expected values need updating; this is an explicit subtask.
+- 4 spot-check schools from the audit: Juanita HS, Lewis and Clark HS, Washington Elementary, Thunder Mountain Middle. Plus 1-2 additional if builder identifies specific diagnostic coverage gaps.
+- Field-level diff summary: what changed between pre-refresh state and post-refresh state for each variable across the spot-check schools.
+- Cohort assignment diff: which spot-check schools changed cohorts, and why (which similarity variables shifted enough to cause the change).
 
-## Open questions / parking lot
+Each receipt stops and waits for builder review.
 
-- ACS 2020-2024 vintage status (resolved by pre-execution review).
-- S-275 2024-25 publication status (resolved by pre-execution review).
-- Teacher experience 2025-26 vintage status (resolved by pre-execution review).
-- Phase 6A coordination during Phase 2R: copy needs to be vintage-neutral or use placeholder tokens. May warrant a pause on 6A work until Phase 2R lands — worth a separate decision.
-- Launch venue for cohort-stability analysis: School Daylight methodology appendix, Sovereign Ground post, or LinkedIn essay. Decide closer to launch.
-- Retention policy for the 2023-24 mongodump archive: indefinite, defined retention period, or only as long as needed for the launch analysis.
+#### Step V2 — Post-rename verification
 
-## Risk watch (phase-specific)
+Run after E6 (rename). Confirm:
 
-- **Premise rot recurrence.** The vintage manifest is the named control. If the manifest gets built but not audited at phase exits, the discipline lapses and the next staleness goes undetected again. Phase 2R receipt should include an explicit "manifest audited at phase exit" line item.
-- **Leading-zero regression.** Same pandas bug, same OSPI file shapes, predictable repeat. Test 1 (ID dtype check) is the mechanical hedge. The bug bit four pipeline scripts in Phase 3R; the test prevents recurrence on the new vintage.
-- **Cascade rot.** Refresh → recompute cohorts → recompute flags → recompute z-score distribution → regenerate narratives → invalidate cache. Errors compound across steps; a wrong intermediate can produce plausible-looking final output. Tests 1-8 audit intermediate state at each pipeline stage, not just endpoints.
-- **Silent transformation across the wider data.** Fairhaven passing is necessary but not sufficient evidence the other 2,531 schools refreshed correctly. The diverse spot-check schools are the hedge. If verification surfaces unexpected patterns, pause before regenerating narratives.
-- **Reviewer credibility.** May 9 brief currently has wrong vintage. Fact-check pass (Control 3) is time-sensitive. The v1.1 update going out by Friday is the recovery; the v1.2 follow-up with refreshed diagnostics is the completion.
-- **No-code rule under pressure.** If builder finds themselves rubber-stamping receipts they don't fully understand because the alternative is asking CC to redo work again, pause. That's a signal, not just fatigue. The phase has a real deadline (v1.1 brief by Friday) but the data work has no external deadline — don't compress verification to make calendar pressure go away.
-- **Coordination across humans.** Pre-execution review and STOP conditions don't reach across the boundary to PhD reviewers. The reviewer reconciliation work is a different mode than the codebase work. Builder judgment is the only governance available for it.
+- Database name resolves to `schooldaylight`; old `schooldaylight_experiment` no longer exists
+- Document count matches pre-rename experiment document count
+- Fairhaven readable, all expected fields present
+- Vintage manifest entries all current
+
+## Open items / parking lot
+
+- Successor methodology phase (working name: Phase 7 per old advisor's framing). Scope: implement academic_flag computation script in `pipeline/`, resolve the K=20 cohort-size question and the ≥15 cohort-mean denominator rule, recalibrate `flag_thresholds.yaml` for L2-L4 distribution, update Fairhaven golden school expected values, deprecate or remove `performance_flag`.
+- Phase 6A interface work resumes after Phase 2R completes. The flag rendering language work was unaffected by Phase 2R; can pick up where it was paused.
+- Methodology brief v1.1: deferred pending Phase 2R completion. Reviewers (Kerry, Ashley) informally notified to hold. Brief revision will land after Phase 2R with refreshed data and corrected vintage policy framing in one coherent update, rather than as a vintage-only correction pass.
+- Architecture overview: parked for execution after Phase 2R per separate planning note (`architecture_overview_parking_note.md`).
+- Retention policy for the pre-Phase-2R `schooldaylight` archive: indefinite (default) unless storage cost warrants otherwise. The archive is forensic evidence, not active data.
+
+## Risk watch
+
+- **Refresh-correctness drift.** Refreshing seven sources at once means seven possible places for silent error. The field-level verification (V1) is the hedge, but verification is sampling — it can miss errors that don't surface in the sample. Mitigation: the spot-check school selection deliberately spans levels and regions to maximize coverage diversity.
+- **Rename blast radius.** The rename in E6 is destructive (drops the old `schooldaylight`). Pre-execution review (Control 3) and backup-restorability check (Control 2) are the named hedges. The rename is sequenced after verification to ensure issues surface before destruction.
+- **L2-L4 distribution shift produces unexpected flag movements.** The existing `performance_flag` regression thresholds in `flag_thresholds.yaml` were calibrated for L3+L4. Under L2-L4 (statewide mean ~75% vs ~50%), the threshold bands won't mean what they did. Phase 2R explicitly accepts this — `performance_flag` is being replaced anyway, so its short-term miscalibration is tolerated. Brief language acknowledges that the flag values will recalibrate in the successor phase.
+- **CCD preliminary status drift.** The on-disk NCES file is preliminary; NCES may publish revisions. The vintage manifest tracks the preliminary status explicitly. If a finalized 2024-25 CCD ships before the successor phase, that becomes a refresh trigger.
+- **Successor phase scope ambiguity.** Phase 2R defers academic_flag work, but the successor phase isn't fully scoped yet. The parking lot above lists what belongs there; a separate scoping conversation needs to settle the phase's boundaries before it executes.
+- **Cross-conversation continuity.** This plan rewrite happened in a single advisor session on 2026-05-13 after several hours of audit and discussion. The reasoning is dense; future sessions reading the plan should consult the build log entry for 2026-05-13 for the underlying analysis if anything in the plan reads as underspecified.

@@ -516,3 +516,23 @@ See `phases/phase-2R/plan.md` for the full plan, controls, and sequential steps.
 Going forward, each phase begins with `phases/phase-N/plan.md` drafted in advisor session before execution. The plan contains decisions, controls, sequential steps, and risks. CC, advisor, and builder all read and update the same plan. Replaces the prior pattern of per-session handoff files, which produced drift between parallel CC and advisor handoffs and bundled state-and-tasks awkwardly. Phase 2R is the first phase under this convention; see `phases/phase-2R/plan.md` as the template.
 
 ---
+
+## 2026-05-13 — Phase 2R scope rewritten after audit; vintage policy and R10 reversed
+
+Advisor session conducted a read-only audit of production data state and substantially reshaped Phase 2R.
+
+**Audit findings.** Operational database is `schooldaylight_experiment`, not `schooldaylight`. Phase 3R wrote outputs to the experiment database as a defensive isolation pattern that became permanent; the historical `schooldaylight` carries only the Phase 2 baseline plus Phase 5 narratives. academic_flag is designed but NOT computed — peer_match cohort statistics exist, but no script writes the academic_flag field itself.
+
+**Vintage policy reversed.** Implicit "vintage alignment" policy from Phase 3R replaced with "use most recent published data per variable, with explicit status disclosure where preliminary." The previous policy optimized for statistical-reviewer convention over user-currency needs without explicit endorsement.
+
+**R10 reversed.** The 2026-05-05 decision to vintage-align teacher salary downward to 2023-24 final is undone. OSPI S-275 2024-25 final has been available since 2025-11-25; salary refreshes to 2024-25 final under the new policy.
+
+**L2-L4 adoption.** Phase 2R switches the assessment loader to OSPI's "Foundational Grade-Level Knowledge" column (L2-L4) instead of "Consistent Grade Level Knowledge" (L3+L4). Aligns with OSPI's public framing as of 2024-09-10. The project had been diverging from state framing for ~20 months.
+
+**Phase 2R scope locked (option 1).** Refresh 7 data sources to current vintages, switch assessment to L2-L4, re-run cohort statistics, rename `schooldaylight_experiment` → `schooldaylight` (archive and drop the old `schooldaylight`), generate vintage manifest. NOT in scope: academic_flag implementation, narrative regeneration, flag threshold recalibration, render-side work, methodology brief revision. Those belong to a successor phase.
+
+**Methodology brief v1.1 deferred.** Originally targeted for 2026-05-15 ship to statistical reviewers as a vintage-only correction; the audit revealed structural issues that a vintage-only correction would not have addressed. Reviewers informally notified to hold; revised brief lands after Phase 2R completes.
+
+**Durable artifacts produced.** Phase 2R plan v2 (`phases/phase-2R/plan.md`, supersedes v1 archived at `phases/phase-2R/plan_old.md`); architecture overview parking note (`phases/phase-2R/architecture_overview_parking_note.md`, for execution after Phase 2R).
+
+---
